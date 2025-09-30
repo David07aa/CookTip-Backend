@@ -1,4 +1,4 @@
-const { query } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { optionalAuth } = require('../../middleware/auth');
 
 /**
@@ -45,45 +45,50 @@ module.exports = async (req, res) => {
     }
 
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
+    const limit = parseInt(pageSize);
 
     // 构建查询条件
-    let whereClauses = ['author_id = ?'];
-    let params = [targetUserId];
+    const whereClauses = [`author_id = $1::uuid`];
+    const params = [targetUserId];
+    let paramIndex = 2;
 
     // 如果不是查看自己的食谱，只能看已发布的
     if (!req.user || req.user.id !== targetUserId) {
-      whereClauses.push('status = ?');
+      whereClauses.push(`status = $${paramIndex}`);
       params.push('published');
+      paramIndex++;
     } else if (status !== 'all') {
-      whereClauses.push('status = ?');
+      whereClauses.push(`status = $${paramIndex}`);
       params.push(status);
+      paramIndex++;
     }
 
     const whereSQL = whereClauses.join(' AND ');
 
     // 查询总数
-    const countSQL = `SELECT COUNT(*) as total FROM recipes WHERE ${whereSQL}`;
-    const [countResult] = await query(countSQL, params);
-    const total = countResult.total;
+    const countQuery = `SELECT COUNT(*)::int as total FROM recipes WHERE ${whereSQL}`;
+    const countResult = await sql.query(countQuery, params);
+    const total = countResult.rows[0].total;
 
     // 查询食谱列表
-    const sql = `
+    const listQuery = `
       SELECT 
-        id as recipeId,
+        id as "recipeId",
         title,
-        cover_image as coverImage,
-        views as viewCount,
-        likes as likeCount,
-        collects as collectCount,
+        cover_image as "coverImage",
+        views as "viewCount",
+        likes as "likeCount",
+        favorites as "collectCount",
         status,
-        created_at as createdAt
+        created_at as "createdAt"
       FROM recipes
       WHERE ${whereSQL}
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    const recipes = await query(sql, [...params, parseInt(pageSize), offset]);
+    const listResult = await sql.query(listQuery, [...params, limit, offset]);
+    const recipes = listResult.rows;
 
     res.status(200).json({
       code: 200,
@@ -92,7 +97,7 @@ module.exports = async (req, res) => {
         list: recipes,
         total,
         page: parseInt(page),
-        pageSize: parseInt(pageSize)
+        pageSize: limit
       }
     });
 
