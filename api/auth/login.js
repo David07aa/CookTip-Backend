@@ -1,5 +1,5 @@
 const { code2Session } = require('../../lib/wechat');
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { generateToken } = require('../../lib/auth');
 
 /**
@@ -49,38 +49,40 @@ module.exports = async (req, res) => {
     }
 
     // 2. 查找或创建用户
-    let user = await queryOne(
-      'SELECT * FROM users WHERE openid = ?',
-      [openid]
-    );
+    const existingUser = await sql`
+      SELECT * FROM users WHERE openid = ${openid}
+    `;
+    
+    let user;
 
-    if (!user) {
+    if (existingUser.rows.length === 0) {
       // 创建新用户
-      const userId = generateUUID();
       const defaultNickName = nickName || '美食爱好者';
       const defaultAvatar = avatar || 'https://i.pravatar.cc/300';
 
-      await query(
-        `INSERT INTO users (id, openid, nick_name, avatar, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, NOW(), NOW())`,
-        [userId, openid, defaultNickName, defaultAvatar]
-      );
+      const result = await sql`
+        INSERT INTO users (openid, nick_name, avatar) 
+        VALUES (${openid}, ${defaultNickName}, ${defaultAvatar})
+        RETURNING *
+      `;
 
-      user = await queryOne(
-        'SELECT * FROM users WHERE id = ?',
-        [userId]
-      );
-    } else if (nickName || avatar) {
-      // 更新用户信息
-      await query(
-        `UPDATE users SET nick_name = COALESCE(?, nick_name), avatar = COALESCE(?, avatar), updated_at = NOW() WHERE id = ?`,
-        [nickName, avatar, user.id]
-      );
+      user = result.rows[0];
+    } else {
+      user = existingUser.rows[0];
       
-      user = await queryOne(
-        'SELECT * FROM users WHERE id = ?',
-        [user.id]
-      );
+      // 如果提供了新的昵称或头像，更新用户信息
+      if (nickName || avatar) {
+        const result = await sql`
+          UPDATE users 
+          SET nick_name = COALESCE(${nickName || null}, nick_name),
+              avatar = COALESCE(${avatar || null}, avatar),
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${user.id}::uuid
+          RETURNING *
+        `;
+        
+        user = result.rows[0];
+      }
     }
 
     // 3. 生成JWT token
@@ -96,7 +98,7 @@ module.exports = async (req, res) => {
           nickName: user.nick_name,
           avatar: user.avatar,
           bio: user.bio,
-          isVip: user.is_vip === 1,
+          isVip: user.is_vip,
           followers: user.followers,
           following: user.following,
           totalLikes: user.total_likes,
@@ -114,12 +116,3 @@ module.exports = async (req, res) => {
     });
   }
 };
-
-// 生成UUID辅助函数
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
