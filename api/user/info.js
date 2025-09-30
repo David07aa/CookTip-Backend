@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -22,24 +22,23 @@ module.exports = async (req, res) => {
   try {
     // GET - 获取当前用户信息
     if (req.method === 'GET') {
-      const user = await queryOne(
-        `SELECT 
-          id as userId,
-          nick_name as nickName,
-          avatar as avatarUrl,
+      const userResult = await sql`
+        SELECT 
+          id as "userId",
+          nick_name as "nickName",
+          avatar as "avatarUrl",
           bio,
-          is_vip as isVip,
-          recipe_count as recipeCount,
-          following as followCount,
-          followers as fansCount,
-          total_likes as likeCount,
-          created_at as createdAt
+          is_vip as "isVip",
+          recipe_count as "recipeCount",
+          following as "followCount",
+          followers as "fansCount",
+          total_likes as "likeCount",
+          created_at as "createdAt"
         FROM users 
-        WHERE id = ?`,
-        [req.user.id]
-      );
+        WHERE id = ${req.user.id}::uuid
+      `;
 
-      if (!user) {
+      if (userResult.rows.length === 0) {
         return res.status(404).json({
           code: 404,
           message: '用户不存在',
@@ -47,19 +46,21 @@ module.exports = async (req, res) => {
         });
       }
 
+      const user = userResult.rows[0];
+
       // 获取收藏数
-      const collectResult = await queryOne(
-        'SELECT COUNT(*) as count FROM favorites WHERE user_id = ?',
-        [req.user.id]
-      );
+      const collectResult = await sql`
+        SELECT COUNT(*)::int as count 
+        FROM favorites 
+        WHERE user_id = ${req.user.id}::uuid
+      `;
 
       return res.status(200).json({
         code: 200,
         message: 'Success',
         data: {
           ...user,
-          isVip: user.isVip === 1,
-          collectCount: collectResult.count
+          collectCount: collectResult.rows[0].count
         }
       });
     }
@@ -68,25 +69,13 @@ module.exports = async (req, res) => {
     if (req.method === 'PUT') {
       const { nickName, avatarUrl, bio } = req.body;
 
-      const updates = [];
-      const params = [];
+      // 构建更新对象
+      const updates = {};
+      if (nickName !== undefined) updates.nickName = nickName;
+      if (avatarUrl !== undefined) updates.avatar = avatarUrl;
+      if (bio !== undefined) updates.bio = bio;
 
-      if (nickName !== undefined) {
-        updates.push('nick_name = ?');
-        params.push(nickName);
-      }
-
-      if (avatarUrl !== undefined) {
-        updates.push('avatar = ?');
-        params.push(avatarUrl);
-      }
-
-      if (bio !== undefined) {
-        updates.push('bio = ?');
-        params.push(bio);
-      }
-
-      if (updates.length === 0) {
+      if (Object.keys(updates).length === 0) {
         return res.status(400).json({
           code: 400,
           message: '没有需要更新的字段',
@@ -94,12 +83,29 @@ module.exports = async (req, res) => {
         });
       }
 
-      updates.push('updated_at = NOW()');
-      params.push(req.user.id);
+      // 构建 SQL
+      const setClauses = [];
+      const values = [];
+      
+      if (nickName !== undefined) {
+        setClauses.push(`nick_name = $${setClauses.length + 1}`);
+        values.push(nickName);
+      }
+      if (avatarUrl !== undefined) {
+        setClauses.push(`avatar = $${setClauses.length + 1}`);
+        values.push(avatarUrl);
+      }
+      if (bio !== undefined) {
+        setClauses.push(`bio = $${setClauses.length + 1}`);
+        values.push(bio);
+      }
+      
+      setClauses.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(req.user.id);
 
-      await query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-        params
+      await sql.query(
+        `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${values.length}::uuid`,
+        values
       );
 
       return res.status(200).json({
