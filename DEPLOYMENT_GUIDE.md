@@ -50,7 +50,7 @@ git push -u origin main
    DB_PORT=3308
    DB_NAME=onefoodlibrary
    DB_USER=david_x
-   DB_PASSWORD=NVRvnX3rP88UyUET
+   DB_PASSWORD=your-database-password
    WECHAT_APPID=wx8486e57500ac0a55
    WECHAT_SECRET=你的微信小程序密钥
    JWT_SECRET=your_super_secret_jwt_key_2024

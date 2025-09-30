@@ -8,7 +8,7 @@ const config = {
   port: parseInt(process.env.DB_PORT) || 3308,
   database: process.env.DB_NAME || 'onefoodlibrary',
   user: process.env.DB_USER || 'david_x',
-  password: process.env.DB_PASSWORD || 'NVRvnX3rP88UyUET'
+  password: process.env.DB_PASSWORD || 'your-database-password'
 };
 
 async function initDatabase() {

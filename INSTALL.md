@@ -210,7 +210,7 @@ npm install
 主机: mysql3.sqlpub.com
 端口: 3308
 用户: david_x
-密码: NVRvnX3rP88UyUET
+密码: your-database-password
 数据库: onefoodlibrary
 ```
 

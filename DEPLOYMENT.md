@@ -17,7 +17,7 @@
 数据库地址: mysql3.sqlpub.com:3308
 数据库名称: onefoodlibrary
 用户名: david_x
-密码: NVRvnX3rP88UyUET
+密码: your-database-password
 ```
 
 ### 1.2 安装依赖
@@ -71,7 +71,7 @@ DB_HOST=mysql3.sqlpub.com
 DB_PORT=3308
 DB_NAME=onefoodlibrary
 DB_USER=david_x
-DB_PASSWORD=NVRvnX3rP88UyUET
+DB_PASSWORD=your-database-password
 
 WECHAT_APPID=wx8486e57500ac0a55
 WECHAT_SECRET=your_wechat_secret_here
