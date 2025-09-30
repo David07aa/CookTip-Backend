@@ -1,9 +1,10 @@
-const { query, queryOne } = require('../../lib/db');
+const { query, queryOne, pool } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
  * 食谱列表和创建
  * GET /api/recipes - 获取列表
+ * GET /api/recipes?health=check - 健康检查
  * POST /api/recipes - 创建食谱（需要登录）
  */
 module.exports = async (req, res) => {
@@ -14,6 +15,41 @@ module.exports = async (req, res) => {
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // 健康检查
+  if (req.method === 'GET' && req.query.health === 'check') {
+    const healthStatus = {
+      api: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: {
+        hasDBHost: !!process.env.DB_HOST,
+        hasDBPort: !!process.env.DB_PORT,
+        hasDBName: !!process.env.DB_NAME,
+        hasDBUser: !!process.env.DB_USER,
+        hasDBPassword: !!process.env.DB_PASSWORD,
+        dbHost: process.env.DB_HOST || 'NOT_SET',
+        dbPort: process.env.DB_PORT || 'NOT_SET'
+      },
+      database: 'checking...'
+    };
+
+    try {
+      const connection = await pool.getConnection();
+      await connection.ping();
+      connection.release();
+      
+      healthStatus.database = 'connected';
+      healthStatus.success = true;
+      
+      return res.status(200).json(healthStatus);
+    } catch (error) {
+      healthStatus.database = 'error';
+      healthStatus.databaseError = error.message;
+      healthStatus.success = false;
+      
+      return res.status(500).json(healthStatus);
+    }
   }
 
   // POST - 创建食谱
