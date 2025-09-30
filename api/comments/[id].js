@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -38,18 +38,19 @@ module.exports = async (req, res) => {
 
   try {
     // 检查评论是否存在且属于当前用户
-    const comment = await queryOne(
-      'SELECT id, user_id, recipe_id FROM comments WHERE id = ?',
-      [id]
-    );
+    const commentResult = await sql`
+      SELECT id, user_id, recipe_id FROM comments WHERE id = ${id}::uuid
+    `;
 
-    if (!comment) {
+    if (commentResult.rows.length === 0) {
       return res.status(404).json({
         code: 404,
         message: '评论不存在',
         data: null
       });
     }
+
+    const comment = commentResult.rows[0];
 
     if (comment.user_id !== req.user.id) {
       return res.status(403).json({
@@ -60,13 +61,12 @@ module.exports = async (req, res) => {
     }
 
     // 删除评论
-    await query('DELETE FROM comments WHERE id = ?', [id]);
+    await sql`DELETE FROM comments WHERE id = ${id}::uuid`;
 
     // 更新食谱评论数
-    await query(
-      'UPDATE recipes SET comments = GREATEST(comments - 1, 0) WHERE id = ?',
-      [comment.recipe_id]
-    );
+    await sql`
+      UPDATE recipes SET comments = GREATEST(comments - 1, 0) WHERE id = ${comment.recipe_id}::uuid
+    `;
 
     res.status(200).json({
       code: 200,

@@ -1,4 +1,4 @@
-const { query } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 
 /**
  * 获取分类列表
@@ -23,15 +23,15 @@ module.exports = async (req, res) => {
 
   try {
     // 获取所有分类及其食谱数量
-    const categories = await query(`
+    const categoriesResult = await sql`
       SELECT 
         category as name,
-        COUNT(*) as recipeCount
+        COUNT(*)::int as "recipeCount"
       FROM recipes
       WHERE status = 'published'
       GROUP BY category
-      ORDER BY recipeCount DESC
-    `);
+      ORDER BY "recipeCount" DESC
+    `;
 
     // 预定义分类图标
     const categoryIcons = {
@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
     };
 
     // 格式化返回数据
-    const formattedCategories = categories.map((cat, index) => ({
+    const formattedCategories = categoriesResult.rows.map((cat, index) => ({
       categoryId: `cat_${String(index + 1).padStart(3, '0')}`,
       name: cat.name,
       icon: categoryIcons[cat.name] || 'https://i.pravatar.cc/100',

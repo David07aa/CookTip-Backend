@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -29,9 +29,10 @@ module.exports = async (req, res) => {
       }
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
+      const limitNum = parseInt(limit);
 
-      const comments = await query(
-        `SELECT 
+      const commentsResult = await sql`
+        SELECT 
           c.*,
           u.nick_name as user_nick_name,
           u.avatar as user_avatar,
@@ -41,23 +42,22 @@ module.exports = async (req, res) => {
         LEFT JOIN users u ON c.user_id = u.id
         LEFT JOIN comments reply_comment ON c.reply_to = reply_comment.id
         LEFT JOIN users reply_user ON reply_comment.user_id = reply_user.id
-        WHERE c.recipe_id = ?
+        WHERE c.recipe_id = ${recipeId}::uuid
         ORDER BY c.created_at DESC
-        LIMIT ? OFFSET ?`,
-        [recipeId, parseInt(limit), offset]
-      );
+        LIMIT ${limitNum} OFFSET ${offset}
+      `;
 
-      const formattedComments = comments.map(comment => ({
+      const formattedComments = commentsResult.rows.map(comment => ({
         id: comment.id,
         content: comment.content,
-        images: comment.images ? JSON.parse(comment.images) : [],
+        images: comment.images || [],
         likes: comment.likes,
         createdAt: comment.created_at,
         user: {
           id: comment.user_id,
           nickName: comment.user_nick_name,
           avatar: comment.user_avatar,
-          isVip: comment.user_is_vip === 1
+          isVip: comment.user_is_vip
         },
         replyTo: comment.reply_to ? {
           commentId: comment.reply_to,
@@ -70,7 +70,7 @@ module.exports = async (req, res) => {
         data: {
           comments: formattedComments,
           page: parseInt(page),
-          limit: parseInt(limit)
+          limit: limitNum
         }
       });
     }
@@ -99,12 +99,11 @@ module.exports = async (req, res) => {
       }
 
       // 检查食谱是否存在
-      const recipe = await queryOne(
-        'SELECT id FROM recipes WHERE id = ? AND status = "published"',
-        [recipeId]
-      );
+      const recipeResult = await sql`
+        SELECT id FROM recipes WHERE id = ${recipeId}::uuid AND status = 'published'
+      `;
 
-      if (!recipe) {
+      if (recipeResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: '食谱不存在',
@@ -114,12 +113,11 @@ module.exports = async (req, res) => {
 
       // 如果是回复评论，检查被回复的评论是否存在
       if (replyTo) {
-        const replyComment = await queryOne(
-          'SELECT id FROM comments WHERE id = ? AND recipe_id = ?',
-          [replyTo, recipeId]
-        );
+        const replyCommentResult = await sql`
+          SELECT id FROM comments WHERE id = ${replyTo}::uuid AND recipe_id = ${recipeId}::uuid
+        `;
 
-        if (!replyComment) {
+        if (replyCommentResult.rows.length === 0) {
           return res.status(404).json({
             success: false,
             error: '评论不存在',
@@ -129,31 +127,38 @@ module.exports = async (req, res) => {
       }
 
       // 创建评论
-      const commentId = generateUUID();
-      await query(
-        `INSERT INTO comments (id, recipe_id, user_id, content, images, reply_to, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-        [commentId, recipeId, req.user.id, content, JSON.stringify(images), replyTo || null]
-      );
+      const insertResult = await sql`
+        INSERT INTO comments (recipe_id, user_id, content, images, reply_to) 
+        VALUES (
+          ${recipeId}::uuid, 
+          ${req.user.id}::uuid, 
+          ${content}, 
+          ${JSON.stringify(images)}::jsonb, 
+          ${replyTo ? `${replyTo}::uuid` : null}
+        )
+        RETURNING id, created_at
+      `;
+
+      const commentId = insertResult.rows[0].id;
 
       // 更新食谱评论数
-      await query(
-        'UPDATE recipes SET comments = comments + 1 WHERE id = ?',
-        [recipeId]
-      );
+      await sql`
+        UPDATE recipes SET comments = comments + 1 WHERE id = ${recipeId}::uuid
+      `;
 
       // 获取创建的评论详情
-      const comment = await queryOne(
-        `SELECT 
+      const commentResult = await sql`
+        SELECT 
           c.*,
           u.nick_name as user_nick_name,
           u.avatar as user_avatar,
           u.is_vip as user_is_vip
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id
-        WHERE c.id = ?`,
-        [commentId]
-      );
+        WHERE c.id = ${commentId}::uuid
+      `;
+
+      const comment = commentResult.rows[0];
 
       return res.status(201).json({
         success: true,
@@ -165,7 +170,7 @@ module.exports = async (req, res) => {
           user: {
             nickName: comment.user_nick_name,
             avatar: comment.user_avatar,
-            isVip: comment.user_is_vip === 1
+            isVip: comment.user_is_vip
           }
         }
       });
@@ -180,11 +185,3 @@ module.exports = async (req, res) => {
     });
   }
 };
-
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}

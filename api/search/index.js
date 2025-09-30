@@ -1,4 +1,4 @@
-const { query } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 
 /**
  * 搜索食谱
@@ -39,52 +39,56 @@ module.exports = async (req, res) => {
     }
 
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
+    const limitNum = parseInt(pageSize);
 
     // 构建查询条件
-    let whereClauses = [
-      'r.status = ?',
-      '(r.title LIKE ? OR r.introduction LIKE ?)'
+    const whereClauses = [
+      `r.status = 'published'`,
+      `(r.title ILIKE $1 OR r.description ILIKE $1)`
     ];
-    let params = ['published', `%${keyword}%`, `%${keyword}%`];
+    const params = [`%${keyword}%`];
+    let paramIndex = 2;
 
     if (category) {
-      whereClauses.push('r.category = ?');
+      whereClauses.push(`r.category = $${paramIndex}`);
       params.push(category);
+      paramIndex++;
     }
 
     if (difficulty) {
-      whereClauses.push('r.difficulty = ?');
+      whereClauses.push(`r.difficulty = $${paramIndex}`);
       params.push(difficulty);
+      paramIndex++;
     }
 
     const whereSQL = whereClauses.join(' AND ');
 
     // 查询总数
-    const countSQL = `SELECT COUNT(*) as total FROM recipes r WHERE ${whereSQL}`;
-    const [countResult] = await query(countSQL, params);
-    const total = countResult.total;
+    const countQuery = `SELECT COUNT(*)::int as total FROM recipes r WHERE ${whereSQL}`;
+    const countResult = await sql.query(countQuery, params);
+    const total = countResult.rows[0].total;
 
     // 查询搜索结果
-    const sql = `
+    const listQuery = `
       SELECT 
-        r.id as recipeId,
+        r.id as "recipeId",
         r.title,
-        r.introduction as description,
-        r.cover_image as coverImage,
-        r.likes as likeCount,
-        r.collects as collectCount,
-        u.nick_name as authorNickName
+        r.description,
+        r.cover_image as "coverImage",
+        r.likes as "likeCount",
+        r.favorites as "collectCount",
+        u.nick_name as "authorNickName"
       FROM recipes r
       LEFT JOIN users u ON r.author_id = u.id
       WHERE ${whereSQL}
       ORDER BY r.views DESC, r.created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 
-    const results = await query(sql, [...params, parseInt(pageSize), offset]);
+    const listResult = await sql.query(listQuery, [...params, limitNum, offset]);
 
     // 格式化返回数据
-    const formattedResults = results.map(item => ({
+    const formattedResults = listResult.rows.map(item => ({
       recipeId: item.recipeId,
       title: item.title,
       description: item.description,
@@ -103,7 +107,7 @@ module.exports = async (req, res) => {
         list: formattedResults,
         total,
         page: parseInt(page),
-        pageSize: parseInt(pageSize)
+        pageSize: limitNum
       }
     });
 
