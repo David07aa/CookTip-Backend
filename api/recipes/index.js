@@ -1,4 +1,4 @@
-const { query, queryOne, pool } = require('../../lib/db');
+const { sql, query, queryOne } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -22,30 +22,29 @@ module.exports = async (req, res) => {
     const healthStatus = {
       api: 'ok',
       timestamp: new Date().toISOString(),
+      database: 'Neon PostgreSQL',
       environment: {
-        hasDBHost: !!process.env.DB_HOST,
-        hasDBPort: !!process.env.DB_PORT,
-        hasDBName: !!process.env.DB_NAME,
-        hasDBUser: !!process.env.DB_USER,
-        hasDBPassword: !!process.env.DB_PASSWORD,
-        dbHost: process.env.DB_HOST || 'NOT_SET',
-        dbPort: process.env.DB_PORT || 'NOT_SET'
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+        hasPostgresPrismaUrl: !!process.env.POSTGRES_PRISMA_URL,
+        hasJWTSecret: !!process.env.JWT_SECRET,
+        hasWeChatAppId: !!process.env.WECHAT_APPID,
+        hasWeChatSecret: !!process.env.WECHAT_SECRET
       },
-      database: 'checking...'
+      connection: 'checking...'
     };
 
     try {
-      const connection = await pool.getConnection();
-      await connection.ping();
-      connection.release();
+      const result = await sql`SELECT NOW() as current_time, version() as pg_version`;
       
-      healthStatus.database = 'connected';
+      healthStatus.connection = 'connected';
+      healthStatus.serverTime = result.rows[0].current_time;
+      healthStatus.postgresVersion = result.rows[0].pg_version.split(' ')[0] + ' ' + result.rows[0].pg_version.split(' ')[1];
       healthStatus.success = true;
       
       return res.status(200).json(healthStatus);
     } catch (error) {
-      healthStatus.database = 'error';
-      healthStatus.databaseError = error.message;
+      healthStatus.connection = 'error';
+      healthStatus.error = error.message;
       healthStatus.success = false;
       
       return res.status(500).json(healthStatus);
