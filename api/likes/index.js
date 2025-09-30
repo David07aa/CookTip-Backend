@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -33,15 +33,14 @@ module.exports = async (req, res) => {
         });
       }
 
-      const like = await queryOne(
-        'SELECT id FROM likes WHERE user_id = ? AND recipe_id = ?',
-        [req.user.id, recipeId]
-      );
+      const likeResult = await sql`
+        SELECT id FROM likes WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipeId}::uuid
+      `;
 
       return res.status(200).json({
         success: true,
         data: {
-          liked: !!like
+          liked: likeResult.rows.length > 0
         }
       });
     }
@@ -59,12 +58,11 @@ module.exports = async (req, res) => {
       }
 
       // 检查食谱是否存在
-      const recipe = await queryOne(
-        'SELECT id, author_id FROM recipes WHERE id = ? AND status = "published"',
-        [recipeId]
-      );
+      const recipeResult = await sql`
+        SELECT id, author_id FROM recipes WHERE id = ${recipeId}::uuid AND status = 'published'
+      `;
 
-      if (!recipe) {
+      if (recipeResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: '食谱不存在',
@@ -72,13 +70,14 @@ module.exports = async (req, res) => {
         });
       }
 
-      // 检查是否已点赞
-      const existing = await queryOne(
-        'SELECT id FROM likes WHERE user_id = ? AND recipe_id = ?',
-        [req.user.id, recipeId]
-      );
+      const recipe = recipeResult.rows[0];
 
-      if (existing) {
+      // 检查是否已点赞
+      const existingResult = await sql`
+        SELECT id FROM likes WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipeId}::uuid
+      `;
+
+      if (existingResult.rows.length > 0) {
         return res.status(400).json({
           success: false,
           error: '已点赞',
@@ -87,24 +86,24 @@ module.exports = async (req, res) => {
       }
 
       // 添加点赞
-      const likeId = generateUUID();
-      await query(
-        'INSERT INTO likes (id, user_id, recipe_id, created_at) VALUES (?, ?, ?, NOW())',
-        [likeId, req.user.id, recipeId]
-      );
+      const insertResult = await sql`
+        INSERT INTO likes (user_id, recipe_id) 
+        VALUES (${req.user.id}::uuid, ${recipeId}::uuid)
+        RETURNING id
+      `;
+
+      const likeId = insertResult.rows[0].id;
 
       // 更新食谱点赞数
-      await query(
-        'UPDATE recipes SET likes = likes + 1 WHERE id = ?',
-        [recipeId]
-      );
+      await sql`
+        UPDATE recipes SET likes = likes + 1 WHERE id = ${recipeId}::uuid
+      `;
 
       // 更新作者总获赞数
       if (recipe.author_id) {
-        await query(
-          'UPDATE users SET total_likes = total_likes + 1 WHERE id = ?',
-          [recipe.author_id]
-        );
+        await sql`
+          UPDATE users SET total_likes = total_likes + 1 WHERE id = ${recipe.author_id}::uuid
+        `;
       }
 
       return res.status(201).json({
@@ -130,18 +129,18 @@ module.exports = async (req, res) => {
       }
 
       // 获取食谱作者信息
-      const recipe = await queryOne(
-        'SELECT author_id FROM recipes WHERE id = ?',
-        [recipeId]
-      );
+      const recipeResult = await sql`
+        SELECT author_id FROM recipes WHERE id = ${recipeId}::uuid
+      `;
 
       // 删除点赞
-      const result = await query(
-        'DELETE FROM likes WHERE user_id = ? AND recipe_id = ?',
-        [req.user.id, recipeId]
-      );
+      const deleteResult = await sql`
+        DELETE FROM likes 
+        WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipeId}::uuid
+        RETURNING id
+      `;
 
-      if (result.affectedRows === 0) {
+      if (deleteResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: '未点赞',
@@ -150,17 +149,15 @@ module.exports = async (req, res) => {
       }
 
       // 更新食谱点赞数
-      await query(
-        'UPDATE recipes SET likes = GREATEST(likes - 1, 0) WHERE id = ?',
-        [recipeId]
-      );
+      await sql`
+        UPDATE recipes SET likes = GREATEST(likes - 1, 0) WHERE id = ${recipeId}::uuid
+      `;
 
       // 更新作者总获赞数
-      if (recipe && recipe.author_id) {
-        await query(
-          'UPDATE users SET total_likes = GREATEST(total_likes - 1, 0) WHERE id = ?',
-          [recipe.author_id]
-        );
+      if (recipeResult.rows.length > 0 && recipeResult.rows[0].author_id) {
+        await sql`
+          UPDATE users SET total_likes = GREATEST(total_likes - 1, 0) WHERE id = ${recipeResult.rows[0].author_id}::uuid
+        `;
       }
 
       return res.status(200).json({
@@ -178,11 +175,3 @@ module.exports = async (req, res) => {
     });
   }
 };
-
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}

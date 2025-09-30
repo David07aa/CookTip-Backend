@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -25,9 +25,10 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const { page = 1, limit = 10 } = req.query;
       const offset = (parseInt(page) - 1) * parseInt(limit);
+      const limitNum = parseInt(limit);
 
-      const favorites = await query(
-        `SELECT 
+      const favoritesResult = await sql`
+        SELECT 
           f.id as favorite_id,
           f.created_at as favorited_at,
           r.*,
@@ -36,26 +37,25 @@ module.exports = async (req, res) => {
         FROM favorites f
         LEFT JOIN recipes r ON f.recipe_id = r.id
         LEFT JOIN users u ON r.author_id = u.id
-        WHERE f.user_id = ?
+        WHERE f.user_id = ${req.user.id}::uuid
         ORDER BY f.created_at DESC
-        LIMIT ? OFFSET ?`,
-        [req.user.id, parseInt(limit), offset]
-      );
+        LIMIT ${limitNum} OFFSET ${offset}
+      `;
 
-      const formattedFavorites = favorites.map(fav => ({
+      const formattedFavorites = favoritesResult.rows.map(fav => ({
         favoriteId: fav.favorite_id,
         favoritedAt: fav.favorited_at,
         recipe: {
           id: fav.id,
           title: fav.title,
           coverImage: fav.cover_image,
-          introduction: fav.introduction,
+          introduction: fav.description,
           cookTime: fav.cook_time,
           difficulty: fav.difficulty,
           category: fav.category,
           views: fav.views,
           likes: fav.likes,
-          collects: fav.collects,
+          collects: fav.favorites,
           author: {
             nickName: fav.author_nick_name,
             avatar: fav.author_avatar
@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
         data: {
           favorites: formattedFavorites,
           page: parseInt(page),
-          limit: parseInt(limit)
+          limit: limitNum
         }
       });
     }
@@ -86,12 +86,11 @@ module.exports = async (req, res) => {
       }
 
       // 检查食谱是否存在
-      const recipe = await queryOne(
-        'SELECT id FROM recipes WHERE id = ? AND status = "published"',
-        [recipeId]
-      );
+      const recipeResult = await sql`
+        SELECT id FROM recipes WHERE id = ${recipeId}::uuid AND status = 'published'
+      `;
 
-      if (!recipe) {
+      if (recipeResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: '食谱不存在',
@@ -100,12 +99,11 @@ module.exports = async (req, res) => {
       }
 
       // 检查是否已收藏
-      const existing = await queryOne(
-        'SELECT id FROM favorites WHERE user_id = ? AND recipe_id = ?',
-        [req.user.id, recipeId]
-      );
+      const existingResult = await sql`
+        SELECT id FROM favorites WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipeId}::uuid
+      `;
 
-      if (existing) {
+      if (existingResult.rows.length > 0) {
         return res.status(400).json({
           success: false,
           error: '已收藏',
@@ -114,17 +112,18 @@ module.exports = async (req, res) => {
       }
 
       // 添加收藏
-      const favoriteId = generateUUID();
-      await query(
-        'INSERT INTO favorites (id, user_id, recipe_id, created_at) VALUES (?, ?, ?, NOW())',
-        [favoriteId, req.user.id, recipeId]
-      );
+      const insertResult = await sql`
+        INSERT INTO favorites (user_id, recipe_id) 
+        VALUES (${req.user.id}::uuid, ${recipeId}::uuid)
+        RETURNING id
+      `;
+
+      const favoriteId = insertResult.rows[0].id;
 
       // 更新食谱收藏数
-      await query(
-        'UPDATE recipes SET collects = collects + 1 WHERE id = ?',
-        [recipeId]
-      );
+      await sql`
+        UPDATE recipes SET favorites = favorites + 1 WHERE id = ${recipeId}::uuid
+      `;
 
       return res.status(201).json({
         success: true,
@@ -149,12 +148,13 @@ module.exports = async (req, res) => {
       }
 
       // 删除收藏
-      const result = await query(
-        'DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?',
-        [req.user.id, recipeId]
-      );
+      const deleteResult = await sql`
+        DELETE FROM favorites 
+        WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipeId}::uuid
+        RETURNING id
+      `;
 
-      if (result.affectedRows === 0) {
+      if (deleteResult.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: '未收藏',
@@ -163,10 +163,9 @@ module.exports = async (req, res) => {
       }
 
       // 更新食谱收藏数
-      await query(
-        'UPDATE recipes SET collects = GREATEST(collects - 1, 0) WHERE id = ?',
-        [recipeId]
-      );
+      await sql`
+        UPDATE recipes SET favorites = GREATEST(favorites - 1, 0) WHERE id = ${recipeId}::uuid
+      `;
 
       return res.status(200).json({
         success: true,
@@ -183,11 +182,3 @@ module.exports = async (req, res) => {
     });
   }
 };
-
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}

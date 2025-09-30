@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 
 /**
  * 获取用户信息
@@ -33,12 +33,14 @@ module.exports = async (req, res) => {
 
   try {
     // 获取用户信息
-    const user = await queryOne(
-      'SELECT id, nick_name, avatar, bio, is_vip, followers, following, total_likes, recipe_count, created_at FROM users WHERE id = ?',
-      [id]
-    );
+    const userResult = await sql`
+      SELECT id, nick_name, avatar, bio, is_vip, followers, following, 
+             total_likes, recipe_count, created_at 
+      FROM users 
+      WHERE id = ${id}::uuid
+    `;
 
-    if (!user) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: '用户不存在',
@@ -46,15 +48,16 @@ module.exports = async (req, res) => {
       });
     }
 
+    const user = userResult.rows[0];
+
     // 获取用户的食谱列表（最新的6个）
-    const recipes = await query(
-      `SELECT id, title, cover_image, views, likes, collects, created_at 
-       FROM recipes 
-       WHERE author_id = ? AND status = 'published' 
-       ORDER BY created_at DESC 
-       LIMIT 6`,
-      [id]
-    );
+    const recipesResult = await sql`
+      SELECT id, title, cover_image, views, likes, favorites, created_at 
+      FROM recipes 
+      WHERE author_id = ${id}::uuid AND status = 'published' 
+      ORDER BY created_at DESC 
+      LIMIT 6
+    `;
 
     res.status(200).json({
       success: true,
@@ -64,20 +67,20 @@ module.exports = async (req, res) => {
           nickName: user.nick_name,
           avatar: user.avatar,
           bio: user.bio,
-          isVip: user.is_vip === 1,
+          isVip: user.is_vip,
           followers: user.followers,
           following: user.following,
           totalLikes: user.total_likes,
           recipeCount: user.recipe_count,
           createdAt: user.created_at
         },
-        recentRecipes: recipes.map(r => ({
+        recentRecipes: recipesResult.rows.map(r => ({
           id: r.id,
           title: r.title,
           coverImage: r.cover_image,
           views: r.views,
           likes: r.likes,
-          collects: r.collects,
+          collects: r.favorites,
           createdAt: r.created_at
         }))
       }
