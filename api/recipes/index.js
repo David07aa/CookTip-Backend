@@ -1,18 +1,16 @@
-const { sql, query, queryOne } = require('../../lib/db');
-const { requireAuth } = require('../../middleware/auth');
+const { sql } = require('../../lib/db');
+const { optionalAuth, requireAuth } = require('../../middleware/auth');
 
 /**
- * 食谱列表和创建
- * GET /api/recipes - 获取列表
- * GET /api/recipes?health=check - 健康检查
+ * 食谱列表和创建接口
+ * GET /api/recipes - 获取食谱列表（支持分页、筛选、排序）
  * POST /api/recipes - 创建食谱（需要登录）
  */
 module.exports = async (req, res) => {
-  // 设置CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -35,245 +33,249 @@ module.exports = async (req, res) => {
 
     try {
       const result = await sql`SELECT NOW() as current_time, version() as pg_version`;
-      
+
       healthStatus.connection = 'connected';
       healthStatus.serverTime = result.rows[0].current_time;
       healthStatus.postgresVersion = result.rows[0].pg_version.split(' ')[0] + ' ' + result.rows[0].pg_version.split(' ')[1];
       healthStatus.success = true;
-      
+
       return res.status(200).json(healthStatus);
     } catch (error) {
       healthStatus.connection = 'error';
       healthStatus.error = error.message;
       healthStatus.success = false;
-      
+
       return res.status(500).json(healthStatus);
     }
   }
 
-  // POST - 创建食谱
-  if (req.method === 'POST') {
-    const authError = await requireAuth(req, res);
-    if (authError) return;
+  try {
+    // GET - 获取食谱列表
+    if (req.method === 'GET') {
+      // 可选认证（用于判断收藏、点赞状态）
+      await optionalAuth(req, res);
 
-    try {
       const {
-        title,
-        coverImage,
-        introduction,
-        cookTime,
-        difficulty,
-        servings,
-        taste,
+        page = 1,
+        limit = 10,
         category,
-        tags = [],
-        ingredients,
-        steps,
-        tips,
-        nutrition
-      } = req.body;
+        difficulty,
+        cookTime,
+        sortBy = 'created_at',
+        order = 'DESC',
+        userId,
+        keyword
+      } = req.query;
 
-      if (!title || !coverImage || !introduction || !cookTime || !difficulty || !servings || !category || !ingredients || !steps) {
-        return res.status(400).json({
-          success: false,
-          error: '参数错误',
-          message: '缺少必填字段'
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      const limitNum = parseInt(limit);
+
+      // 构建查询条件
+      const conditions = [`status = 'published'`];
+      const params = [];
+      let paramIndex = 1;
+
+      if (category) {
+        conditions.push(`category = $${paramIndex}`);
+        params.push(category);
+        paramIndex++;
+      }
+
+      if (difficulty) {
+        conditions.push(`difficulty = $${paramIndex}`);
+        params.push(difficulty);
+        paramIndex++;
+      }
+
+      if (cookTime) {
+        conditions.push(`cook_time <= $${paramIndex}`);
+        params.push(parseInt(cookTime));
+        paramIndex++;
+      }
+
+      if (userId) {
+        conditions.push(`author_id = $${paramIndex}::uuid`);
+        params.push(userId);
+        paramIndex++;
+      }
+
+      if (keyword) {
+        conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        params.push(`%${keyword}%`);
+        paramIndex++;
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // 验证排序字段
+      const validSortFields = ['created_at', 'views', 'likes', 'favorites'];
+      const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+      // 查询总数
+      const countQuery = `SELECT COUNT(*)::int as total FROM recipes ${whereClause}`;
+      const countResult = await sql.query(countQuery, params);
+      const total = countResult.rows[0].total;
+
+      // 查询列表
+      const listQuery = `
+        SELECT 
+          r.id,
+          r.title,
+          r.cover_image as "coverImage",
+          r.description,
+          r.difficulty,
+          r.cook_time as "cookTime",
+          r.servings,
+          r.category,
+          r.views,
+          r.likes,
+          r.favorites,
+          r.created_at as "createdAt",
+          u.id as "authorId",
+          u.nick_name as "authorName",
+          u.avatar as "authorAvatar"
+        FROM recipes r
+        LEFT JOIN users u ON r.author_id = u.id
+        ${whereClause}
+        ORDER BY r.${sortField} ${sortOrder}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+
+      const listResult = await sql.query(listQuery, [...params, limitNum, offset]);
+      const recipes = listResult.rows;
+
+      // 如果用户已登录，查询收藏和点赞状态
+      if (req.user) {
+        for (const recipe of recipes) {
+          const favoriteResult = await sql`
+            SELECT id FROM favorites 
+            WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipe.id}::uuid
+          `;
+          recipe.isFavorited = favoriteResult.rows.length > 0;
+
+          const likeResult = await sql`
+            SELECT id FROM likes 
+            WHERE user_id = ${req.user.id}::uuid AND recipe_id = ${recipe.id}::uuid
+          `;
+          recipe.isLiked = likeResult.rows.length > 0;
+        }
+      } else {
+        recipes.forEach(recipe => {
+          recipe.isFavorited = false;
+          recipe.isLiked = false;
         });
       }
 
-      const recipeId = generateUUID();
+      return res.status(200).json({
+        code: 200,
+        message: 'Success',
+        data: {
+          list: recipes,
+          pagination: {
+            page: parseInt(page),
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+          }
+        }
+      });
+    }
 
-      await query(
-        `INSERT INTO recipes (
-          id, title, cover_image, introduction, author_id, cook_time, 
-          difficulty, servings, taste, category, tags, ingredients, 
-          steps, tips, nutrition, status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', NOW(), NOW())`,
-        [
-          recipeId,
+    // POST - 创建食谱
+    if (req.method === 'POST') {
+      // 必须登录
+      const authError = await requireAuth(req, res);
+      if (authError) return;
+
+      const {
+        title,
+        coverImage,
+        description,
+        difficulty,
+        cookTime,
+        servings,
+        category,
+        ingredients,
+        steps,
+        tips,
+        tags,
+        nutritionInfo
+      } = req.body;
+
+      // 验证必填字段
+      if (!title || !coverImage || !description || !difficulty || !cookTime || !category) {
+        return res.status(400).json({
+          code: 400,
+          message: '缺少必填字段',
+          data: null
+        });
+      }
+
+      // 插入食谱
+      const result = await sql`
+        INSERT INTO recipes (
+          author_id,
           title,
-          coverImage,
-          introduction,
-          req.user.id,
-          parseInt(cookTime),
+          cover_image,
+          description,
           difficulty,
-          parseInt(servings),
-          taste || null,
+          cook_time,
+          servings,
           category,
-          JSON.stringify(tags),
-          JSON.stringify(ingredients),
-          JSON.stringify(steps),
-          tips || null,
-          nutrition ? JSON.stringify(nutrition) : null
-        ]
-      );
+          ingredients,
+          steps,
+          tips,
+          tags,
+          nutrition_info,
+          status
+        ) VALUES (
+          ${req.user.id}::uuid,
+          ${title},
+          ${coverImage},
+          ${description},
+          ${difficulty},
+          ${cookTime},
+          ${servings || 2},
+          ${category},
+          ${JSON.stringify(ingredients || [])}::jsonb,
+          ${JSON.stringify(steps || [])}::jsonb,
+          ${tips || ''},
+          ${JSON.stringify(tags || [])}::jsonb,
+          ${JSON.stringify(nutritionInfo || {})}::jsonb,
+          'published'
+        )
+        RETURNING id, title, created_at as "createdAt"
+      `;
 
-      await query(
-        'UPDATE users SET recipe_count = recipe_count + 1, updated_at = NOW() WHERE id = ?',
-        [req.user.id]
-      );
+      const recipe = result.rows[0];
 
-      const recipe = await queryOne(
-        'SELECT * FROM recipes WHERE id = ?',
-        [recipeId]
-      );
+      // 更新用户食谱数
+      await sql`
+        UPDATE users 
+        SET recipe_count = recipe_count + 1
+        WHERE id = ${req.user.id}::uuid
+      `;
 
       return res.status(201).json({
-        success: true,
+        code: 201,
         message: '食谱创建成功',
-        data: {
-          id: recipe.id,
-          title: recipe.title,
-          coverImage: recipe.cover_image,
-          createdAt: recipe.created_at
-        }
-      });
-
-    } catch (error) {
-      console.error('创建食谱错误:', error);
-      return res.status(500).json({
-        success: false,
-        error: '服务器错误',
-        message: error.message
+        data: recipe
       });
     }
-  }
 
-  // GET - 获取食谱列表
-  if (req.method !== 'GET') {
     return res.status(405).json({
-      success: false,
-      error: '方法不允许',
-      message: '仅支持GET和POST请求'
-    });
-  }
-
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      category,
-      difficulty,
-      taste,
-      keyword,
-      sort = '-created_at'
-    } = req.query;
-
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    // 构建查询条件
-    let whereClauses = ['r.status = ?'];
-    let params = ['published'];
-
-    if (category) {
-      whereClauses.push('r.category = ?');
-      params.push(category);
-    }
-
-    if (difficulty) {
-      whereClauses.push('r.difficulty = ?');
-      params.push(difficulty);
-    }
-
-    if (taste) {
-      whereClauses.push('r.taste = ?');
-      params.push(taste);
-    }
-
-    if (keyword) {
-      whereClauses.push('(r.title LIKE ? OR r.introduction LIKE ?)');
-      params.push(`%${keyword}%`, `%${keyword}%`);
-    }
-
-    const whereSQL = whereClauses.join(' AND ');
-
-    // 排序字段
-    const sortField = sort.startsWith('-') ? sort.slice(1) : sort;
-    const sortOrder = sort.startsWith('-') ? 'DESC' : 'ASC';
-    const allowedSortFields = ['created_at', 'views', 'likes', 'collects', 'cook_time'];
-    const sortColumn = allowedSortFields.includes(sortField) ? sortField : 'created_at';
-
-    // 查询总数
-    const countSQL = `
-      SELECT COUNT(*) as total
-      FROM recipes r
-      WHERE ${whereSQL}
-    `;
-    const [countResult] = await query(countSQL, params);
-    const total = countResult.total;
-
-    // 查询食谱列表
-    const sql = `
-      SELECT 
-        r.*,
-        u.id as author_id,
-        u.nick_name as author_nick_name,
-        u.avatar as author_avatar,
-        u.followers as author_followers
-      FROM recipes r
-      LEFT JOIN users u ON r.author_id = u.id
-      WHERE ${whereSQL}
-      ORDER BY r.${sortColumn} ${sortOrder}
-      LIMIT ? OFFSET ?
-    `;
-
-    const recipes = await query(sql, [...params, parseInt(limit), offset]);
-
-    // 格式化返回数据
-    const formattedRecipes = recipes.map(recipe => ({
-      id: recipe.id,
-      title: recipe.title,
-      coverImage: recipe.cover_image,
-      introduction: recipe.introduction,
-      cookTime: recipe.cook_time,
-      difficulty: recipe.difficulty,
-      servings: recipe.servings,
-      taste: recipe.taste,
-      category: recipe.category,
-      tags: recipe.tags ? JSON.parse(recipe.tags) : [],
-      views: recipe.views,
-      likes: recipe.likes,
-      collects: recipe.collects,
-      comments: recipe.comments,
-      shares: recipe.shares,
-      isRecommended: recipe.is_recommended === 1,
-      createdAt: recipe.created_at,
-      author: {
-        id: recipe.author_id,
-        nickName: recipe.author_nick_name,
-        avatar: recipe.author_avatar,
-        followers: recipe.author_followers
-      }
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: {
-        recipes: formattedRecipes,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / parseInt(limit))
-        }
-      }
+      code: 405,
+      message: '方法不允许',
+      data: null
     });
 
   } catch (error) {
-    console.error('获取食谱列表错误:', error);
+    console.error('食谱接口错误:', error);
     res.status(500).json({
-      success: false,
-      error: '服务器错误',
-      message: error.message
+      code: 500,
+      message: '服务器错误',
+      data: null
     });
   }
 };
-
-// 生成UUID辅助函数
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
