@@ -29,11 +29,11 @@ npm install
 DB_HOST=mysql3.sqlpub.com
 DB_PORT=3308
 DB_NAME=onefoodlibrary
-DB_USER=david_x
+DB_USER=***
 DB_PASSWORD=your-database-password
 
 # 微信小程序配置
-WECHAT_APPID=wx8486e57500ac0a55
+WECHAT_APPID=wx******
 WECHAT_SECRET=your_wechat_secret_here
 
 # JWT密钥
@@ -321,9 +321,9 @@ vercel --prod
 DB_HOST=mysql3.sqlpub.com
 DB_PORT=3308
 DB_NAME=onefoodlibrary
-DB_USER=david_x
+DB_USER=***
 DB_PASSWORD=your-database-password
-WECHAT_APPID=wx8486e57500ac0a55
+WECHAT_APPID=wx******
 WECHAT_SECRET=your_wechat_secret
 JWT_SECRET=your_jwt_secret
 ```
