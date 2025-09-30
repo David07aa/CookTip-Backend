@@ -2,10 +2,25 @@
 
 ## 📋 文档说明
 
-- **项目名称**：一家食谱
+- **项目名称**：一家食谱（CookTip）
 - **接口版本**：v1.0
-- **Base URL**：`https://api.yourdomian.com/api/v1`（待定）
+- **Base URL**：`https://cooktip-backend.vercel.app/api`
 - **文档更新**：2025年9月30日
+- **部署状态**：✅ 已部署，数据库已就绪
+
+## ⚠️ 重要提示
+
+**当前状态：95% 完成**
+
+- ✅ **数据库**：Neon PostgreSQL 已配置完成（7张表）
+- ✅ **API 框架**：12个 Serverless Functions 已部署
+- ⏳ **API 更新**：需要将代码从 MySQL 语法更新为 PostgreSQL 语法
+- 📝 **详细待办**：查看 `下一步工作清单.md`
+
+**可用的测试端点：**
+- 健康检查：https://cooktip-backend.vercel.app/api/recipes?health=check
+
+**注意：** 本文档描述的是完整的API设计规范。实际开发时，请参考 `项目当前状态.md` 了解当前实现进度
 
 ---
 
