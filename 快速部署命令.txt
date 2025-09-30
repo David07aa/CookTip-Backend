@@ -1,0 +1,92 @@
+===========================================
+快速部署命令 - CookTip Backend
+===========================================
+
+请在项目目录下按顺序执行以下命令：
+
+1. 初始化 Git 仓库
+-----------------------------------------
+git init
+
+
+2. 配置 Git 用户信息（首次使用需要）
+-----------------------------------------
+git config --global user.name "你的名字"
+git config --global user.email "你的邮箱@example.com"
+
+
+3. 添加所有文件
+-----------------------------------------
+git add .
+
+
+4. 查看状态（可选，检查文件）
+-----------------------------------------
+git status
+
+
+5. 提交代码
+-----------------------------------------
+git commit -m "feat: 完成21个核心API接口，包含用户、食谱、收藏、点赞、评论等功能"
+
+
+6. 设置主分支
+-----------------------------------------
+git branch -M main
+
+
+7. 关联 GitHub 仓库（替换为你的仓库地址）
+-----------------------------------------
+git remote add origin https://github.com/你的用户名/CookTip-Backend.git
+
+
+8. 推送到 GitHub
+-----------------------------------------
+git push -u origin main
+
+
+===========================================
+接下来：部署到 Vercel
+===========================================
+
+1. 访问 Vercel 网站
+   https://vercel.com/new
+
+2. 使用 GitHub 账号登录
+
+3. 导入 CookTip-Backend 仓库
+
+4. 配置环境变量（重要！）：
+   DB_HOST = mysql3.sqlpub.com
+   DB_PORT = 3308
+   DB_NAME = onefoodlibrary
+   DB_USER = david_x
+   DB_PASSWORD = NVRvnX3rP88UyUET
+   WECHAT_APPID = wx8486e57500ac0a55
+   WECHAT_SECRET = 你的微信密钥
+   JWT_SECRET = your_super_secret_jwt_key_2024
+
+5. 点击 Deploy 按钮
+
+6. 等待部署完成（约1-2分钟）
+
+===========================================
+测试 API
+===========================================
+
+访问以下地址测试（替换为你的 Vercel 域名）：
+
+https://你的域名.vercel.app/api/recipes
+https://你的域名.vercel.app/api/categories
+https://你的域名.vercel.app/api/search?keyword=番茄
+
+===========================================
+需要帮助？
+===========================================
+
+查看详细文档：
+- 部署到GitHub和Vercel指南.md
+- DEPLOYMENT_GUIDE.md
+- NOW_DEPLOY.md
+
+===========================================

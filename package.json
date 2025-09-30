@@ -1,0 +1,25 @@
+{
+  "name": "cooktip-api",
+  "version": "1.0.0",
+  "description": "一家食谱小程序 Vercel Serverless API",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/seed-data.js",
+    "test": "node test-api.js"
+  },
+  "keywords": ["recipe", "wechat", "serverless", "vercel"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "mysql2": "^3.6.5",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  }
+}
