@@ -2,8 +2,8 @@ const { query, queryOne } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
- * 删除评论
- * DELETE /api/comments/[id]
+ * 评论操作（单个评论）
+ * DELETE /api/comments/[id] - 删除评论
  */
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
