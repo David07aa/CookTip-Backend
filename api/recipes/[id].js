@@ -1,4 +1,4 @@
-const { query, queryOne } = require('../../lib/db');
+const { sql } = require('../../lib/db');
 const { requireAuth } = require('../../middleware/auth');
 
 /**
@@ -32,18 +32,19 @@ module.exports = async (req, res) => {
     if (authError) return;
 
     try {
-      const recipe = await queryOne(
-        'SELECT id, author_id FROM recipes WHERE id = ?',
-        [id]
-      );
+      const recipeResult = await sql`
+        SELECT id, author_id FROM recipes WHERE id = ${id}::uuid
+      `;
 
-      if (!recipe) {
+      if (recipeResult.rows.length === 0) {
         return res.status(404).json({
           code: 404,
           message: '食谱不存在',
           data: null
         });
       }
+
+      const recipe = recipeResult.rows[0];
 
       if (recipe.author_id !== req.user.id) {
         return res.status(403).json({
@@ -58,23 +59,73 @@ module.exports = async (req, res) => {
         cookTime, servings, taste, tags, ingredients, steps, status
       } = req.body;
 
-      const updates = [];
-      const params = [];
+      // 构建更新 SQL
+      const setClauses = [];
+      const values = [];
+      let paramIndex = 1;
 
-      if (title !== undefined) { updates.push('title = ?'); params.push(title); }
-      if (description !== undefined) { updates.push('introduction = ?'); params.push(description); }
-      if (coverImage !== undefined) { updates.push('cover_image = ?'); params.push(coverImage); }
-      if (category !== undefined) { updates.push('category = ?'); params.push(category); }
-      if (difficulty !== undefined) { updates.push('difficulty = ?'); params.push(difficulty); }
-      if (cookTime !== undefined) { updates.push('cook_time = ?'); params.push(parseInt(cookTime)); }
-      if (servings !== undefined) { updates.push('servings = ?'); params.push(parseInt(servings)); }
-      if (taste !== undefined) { updates.push('taste = ?'); params.push(taste); }
-      if (tags !== undefined) { updates.push('tags = ?'); params.push(JSON.stringify(tags)); }
-      if (ingredients !== undefined) { updates.push('ingredients = ?'); params.push(JSON.stringify(ingredients)); }
-      if (steps !== undefined) { updates.push('steps = ?'); params.push(JSON.stringify(steps)); }
-      if (status !== undefined) { updates.push('status = ?'); params.push(status); }
+      if (title !== undefined) {
+        setClauses.push(`title = $${paramIndex}`);
+        values.push(title);
+        paramIndex++;
+      }
+      if (description !== undefined) {
+        setClauses.push(`description = $${paramIndex}`);
+        values.push(description);
+        paramIndex++;
+      }
+      if (coverImage !== undefined) {
+        setClauses.push(`cover_image = $${paramIndex}`);
+        values.push(coverImage);
+        paramIndex++;
+      }
+      if (category !== undefined) {
+        setClauses.push(`category = $${paramIndex}`);
+        values.push(category);
+        paramIndex++;
+      }
+      if (difficulty !== undefined) {
+        setClauses.push(`difficulty = $${paramIndex}`);
+        values.push(difficulty);
+        paramIndex++;
+      }
+      if (cookTime !== undefined) {
+        setClauses.push(`cook_time = $${paramIndex}`);
+        values.push(parseInt(cookTime));
+        paramIndex++;
+      }
+      if (servings !== undefined) {
+        setClauses.push(`servings = $${paramIndex}`);
+        values.push(parseInt(servings));
+        paramIndex++;
+      }
+      if (taste !== undefined) {
+        setClauses.push(`taste = $${paramIndex}`);
+        values.push(taste);
+        paramIndex++;
+      }
+      if (tags !== undefined) {
+        setClauses.push(`tags = $${paramIndex}::jsonb`);
+        values.push(JSON.stringify(tags));
+        paramIndex++;
+      }
+      if (ingredients !== undefined) {
+        setClauses.push(`ingredients = $${paramIndex}::jsonb`);
+        values.push(JSON.stringify(ingredients));
+        paramIndex++;
+      }
+      if (steps !== undefined) {
+        setClauses.push(`steps = $${paramIndex}::jsonb`);
+        values.push(JSON.stringify(steps));
+        paramIndex++;
+      }
+      if (status !== undefined) {
+        setClauses.push(`status = $${paramIndex}`);
+        values.push(status);
+        paramIndex++;
+      }
 
-      if (updates.length === 0) {
+      if (setClauses.length === 0) {
         return res.status(400).json({
           code: 400,
           message: '没有需要更新的字段',
@@ -82,10 +133,13 @@ module.exports = async (req, res) => {
         });
       }
 
-      updates.push('updated_at = NOW()');
-      params.push(id);
+      setClauses.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
 
-      await query(`UPDATE recipes SET ${updates.join(', ')} WHERE id = ?`, params);
+      await sql.query(
+        `UPDATE recipes SET ${setClauses.join(', ')} WHERE id = $${paramIndex}::uuid`,
+        values
+      );
 
       return res.status(200).json({
         code: 200,
@@ -109,18 +163,19 @@ module.exports = async (req, res) => {
     if (authError) return;
 
     try {
-      const recipe = await queryOne(
-        'SELECT id, author_id FROM recipes WHERE id = ?',
-        [id]
-      );
+      const recipeResult = await sql`
+        SELECT id, author_id FROM recipes WHERE id = ${id}::uuid
+      `;
 
-      if (!recipe) {
+      if (recipeResult.rows.length === 0) {
         return res.status(404).json({
           code: 404,
           message: '食谱不存在',
           data: null
         });
       }
+
+      const recipe = recipeResult.rows[0];
 
       if (recipe.author_id !== req.user.id) {
         return res.status(403).json({
@@ -130,11 +185,12 @@ module.exports = async (req, res) => {
         });
       }
 
-      await query('DELETE FROM recipes WHERE id = ?', [id]);
-      await query(
-        'UPDATE users SET recipe_count = GREATEST(recipe_count - 1, 0) WHERE id = ?',
-        [req.user.id]
-      );
+      await sql`DELETE FROM recipes WHERE id = ${id}::uuid`;
+      await sql`
+        UPDATE users 
+        SET recipe_count = GREATEST(recipe_count - 1, 0) 
+        WHERE id = ${req.user.id}::uuid
+      `;
 
       return res.status(200).json({
         code: 200,
@@ -162,8 +218,8 @@ module.exports = async (req, res) => {
 
   try {
     // 获取食谱详情
-    const recipe = await queryOne(
-      `SELECT 
+    const recipeResult = await sql`
+      SELECT 
         r.*,
         u.id as author_id,
         u.nick_name as author_nick_name,
@@ -173,11 +229,10 @@ module.exports = async (req, res) => {
         u.is_vip as author_is_vip
       FROM recipes r
       LEFT JOIN users u ON r.author_id = u.id
-      WHERE r.id = ? AND r.status = 'published'`,
-      [id]
-    );
+      WHERE r.id = ${id}::uuid AND r.status = 'published'
+    `;
 
-    if (!recipe) {
+    if (recipeResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: '食谱不存在',
@@ -185,8 +240,10 @@ module.exports = async (req, res) => {
       });
     }
 
+    const recipe = recipeResult.rows[0];
+
     // 增加浏览量（异步，不等待结果）
-    query('UPDATE recipes SET views = views + 1 WHERE id = ?', [id])
+    sql`UPDATE recipes SET views = views + 1 WHERE id = ${id}::uuid`
       .catch(err => console.error('更新浏览量失败:', err));
 
     // 格式化返回数据
@@ -194,23 +251,23 @@ module.exports = async (req, res) => {
       id: recipe.id,
       title: recipe.title,
       coverImage: recipe.cover_image,
-      introduction: recipe.introduction,
+      introduction: recipe.description,
       cookTime: recipe.cook_time,
       difficulty: recipe.difficulty,
       servings: recipe.servings,
       taste: recipe.taste,
       category: recipe.category,
-      tags: recipe.tags ? JSON.parse(recipe.tags) : [],
-      ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients) : [],
-      steps: recipe.steps ? JSON.parse(recipe.steps) : [],
+      tags: recipe.tags || [],
+      ingredients: recipe.ingredients || [],
+      steps: recipe.steps || [],
       tips: recipe.tips,
-      nutrition: recipe.nutrition ? JSON.parse(recipe.nutrition) : null,
+      nutrition: recipe.nutrition_info || null,
       views: recipe.views + 1, // 返回增加后的浏览量
       likes: recipe.likes,
-      collects: recipe.collects,
+      collects: recipe.favorites,
       comments: recipe.comments,
       shares: recipe.shares,
-      isRecommended: recipe.is_recommended === 1,
+      isRecommended: recipe.is_recommended,
       createdAt: recipe.created_at,
       updatedAt: recipe.updated_at,
       author: {
@@ -219,7 +276,7 @@ module.exports = async (req, res) => {
         avatar: recipe.author_avatar,
         bio: recipe.author_bio,
         followers: recipe.author_followers,
-        isVip: recipe.author_is_vip === 1
+        isVip: recipe.author_is_vip
       }
     };
 
