@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
         cover_image as "coverImage",
         views as "viewCount",
         likes as "likeCount",
-        favorites as "collectCount",
+        collects as "collectCount",
         status,
         created_at as "createdAt"
       FROM recipes

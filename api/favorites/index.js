@@ -49,13 +49,13 @@ module.exports = async (req, res) => {
           id: fav.id,
           title: fav.title,
           coverImage: fav.cover_image,
-          introduction: fav.description,
+          introduction: fav.introduction,
           cookTime: fav.cook_time,
           difficulty: fav.difficulty,
           category: fav.category,
           views: fav.views,
           likes: fav.likes,
-          collects: fav.favorites,
+          collects: fav.collects,
           author: {
             nickName: fav.author_nick_name,
             avatar: fav.author_avatar
@@ -122,7 +122,7 @@ module.exports = async (req, res) => {
 
       // 更新食谱收藏数
       await sql`
-        UPDATE recipes SET favorites = favorites + 1 WHERE id = ${recipeId}::uuid
+        UPDATE recipes SET collects = collects + 1 WHERE id = ${recipeId}::uuid
       `;
 
       return res.status(201).json({
@@ -164,7 +164,7 @@ module.exports = async (req, res) => {
 
       // 更新食谱收藏数
       await sql`
-        UPDATE recipes SET favorites = GREATEST(favorites - 1, 0) WHERE id = ${recipeId}::uuid
+        UPDATE recipes SET collects = GREATEST(collects - 1, 0) WHERE id = ${recipeId}::uuid
       `;
 
       return res.status(200).json({

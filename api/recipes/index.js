@@ -100,7 +100,7 @@ module.exports = async (req, res) => {
       }
 
       if (keyword) {
-        conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        conditions.push(`(title ILIKE $${paramIndex} OR introduction ILIKE $${paramIndex})`);
         params.push(`%${keyword}%`);
         paramIndex++;
       }
@@ -108,7 +108,7 @@ module.exports = async (req, res) => {
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       // 验证排序字段
-      const validSortFields = ['created_at', 'views', 'likes', 'favorites'];
+      const validSortFields = ['created_at', 'views', 'likes', 'collects'];
       const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
       const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
@@ -123,14 +123,14 @@ module.exports = async (req, res) => {
           r.id,
           r.title,
           r.cover_image as "coverImage",
-          r.description,
+          r.introduction,
           r.difficulty,
           r.cook_time as "cookTime",
           r.servings,
           r.category,
           r.views,
           r.likes,
-          r.favorites,
+          r.collects,
           r.created_at as "createdAt",
           u.id as "authorId",
           u.nick_name as "authorName",
@@ -191,7 +191,7 @@ module.exports = async (req, res) => {
       const {
         title,
         coverImage,
-        description,
+        introduction,
         difficulty,
         cookTime,
         servings,
@@ -200,11 +200,11 @@ module.exports = async (req, res) => {
         steps,
         tips,
         tags,
-        nutritionInfo
+        nutrition
       } = req.body;
 
       // 验证必填字段
-      if (!title || !coverImage || !description || !difficulty || !cookTime || !category) {
+      if (!title || !coverImage || !introduction || !difficulty || !cookTime || !category) {
         return res.status(400).json({
           code: 400,
           message: '缺少必填字段',
@@ -218,7 +218,7 @@ module.exports = async (req, res) => {
           author_id,
           title,
           cover_image,
-          description,
+          introduction,
           difficulty,
           cook_time,
           servings,
@@ -227,13 +227,13 @@ module.exports = async (req, res) => {
           steps,
           tips,
           tags,
-          nutrition_info,
+          nutrition,
           status
         ) VALUES (
           ${req.user.id}::uuid,
           ${title},
           ${coverImage},
-          ${description},
+          ${introduction},
           ${difficulty},
           ${cookTime},
           ${servings || 2},
@@ -242,7 +242,7 @@ module.exports = async (req, res) => {
           ${JSON.stringify(steps || [])}::jsonb,
           ${tips || ''},
           ${JSON.stringify(tags || [])}::jsonb,
-          ${JSON.stringify(nutritionInfo || {})}::jsonb,
+          ${JSON.stringify(nutrition || {})}::jsonb,
           'published'
         )
         RETURNING id, title, created_at as "createdAt"

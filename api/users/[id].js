@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
 
     // 获取用户的食谱列表（最新的6个）
     const recipesResult = await sql`
-      SELECT id, title, cover_image, views, likes, favorites, created_at 
+      SELECT id, title, cover_image, views, likes, collects, created_at 
       FROM recipes 
       WHERE author_id = ${id}::uuid AND status = 'published' 
       ORDER BY created_at DESC 
@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
           coverImage: r.cover_image,
           views: r.views,
           likes: r.likes,
-          collects: r.favorites,
+          collects: r.collects,
           createdAt: r.created_at
         }))
       }

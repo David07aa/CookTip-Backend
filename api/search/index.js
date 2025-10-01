@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
     // 构建查询条件
     const whereClauses = [
       `r.status = 'published'`,
-      `(r.title ILIKE $1 OR r.description ILIKE $1)`
+      `(r.title ILIKE $1 OR r.introduction ILIKE $1)`
     ];
     const params = [`%${keyword}%`];
     let paramIndex = 2;
@@ -73,10 +73,10 @@ module.exports = async (req, res) => {
       SELECT 
         r.id as "recipeId",
         r.title,
-        r.description,
+        r.introduction,
         r.cover_image as "coverImage",
         r.likes as "likeCount",
-        r.favorites as "collectCount",
+        r.collects as "collectCount",
         u.nick_name as "authorNickName"
       FROM recipes r
       LEFT JOIN users u ON r.author_id = u.id
@@ -91,7 +91,7 @@ module.exports = async (req, res) => {
     const formattedResults = listResult.rows.map(item => ({
       recipeId: item.recipeId,
       title: item.title,
-      description: item.description,
+      introduction: item.introduction,
       coverImage: item.coverImage,
       author: {
         nickName: item.authorNickName

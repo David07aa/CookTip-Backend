@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
       }
 
       const {
-        title, description, coverImage, category, difficulty,
+        title, introduction, coverImage, category, difficulty,
         cookTime, servings, taste, tags, ingredients, steps, status
       } = req.body;
 
@@ -69,9 +69,9 @@ module.exports = async (req, res) => {
         values.push(title);
         paramIndex++;
       }
-      if (description !== undefined) {
-        setClauses.push(`description = $${paramIndex}`);
-        values.push(description);
+      if (introduction !== undefined) {
+        setClauses.push(`introduction = $${paramIndex}`);
+        values.push(introduction);
         paramIndex++;
       }
       if (coverImage !== undefined) {
@@ -251,7 +251,7 @@ module.exports = async (req, res) => {
       id: recipe.id,
       title: recipe.title,
       coverImage: recipe.cover_image,
-      introduction: recipe.description,
+      introduction: recipe.introduction,
       cookTime: recipe.cook_time,
       difficulty: recipe.difficulty,
       servings: recipe.servings,
@@ -261,10 +261,10 @@ module.exports = async (req, res) => {
       ingredients: recipe.ingredients || [],
       steps: recipe.steps || [],
       tips: recipe.tips,
-      nutrition: recipe.nutrition_info || null,
+      nutrition: recipe.nutrition || null,
       views: recipe.views + 1, // 返回增加后的浏览量
       likes: recipe.likes,
-      collects: recipe.favorites,
+      collects: recipe.collects,
       comments: recipe.comments,
       shares: recipe.shares,
       isRecommended: recipe.is_recommended,
