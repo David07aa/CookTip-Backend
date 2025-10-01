@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
-    "db:init": "node scripts/init-db.js",
-    "db:seed": "node scripts/seed-data.js",
+    "db:init": "node scripts/init-db-postgres.js",
+    "db:seed": "node scripts/seed-data-postgres.js",
     "test": "node test-api.js"
   },
   "keywords": [

@@ -1,4 +1,5 @@
 // PostgreSQL 数据库初始化脚本
+require('dotenv').config({ path: '.env.local' });
 const { sql } = require('@vercel/postgres');
 const fs = require('fs');
 const path = require('path');
