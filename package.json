@@ -8,6 +8,8 @@
     "deploy": "vercel --prod",
     "db:init": "node scripts/init-db-postgres.js",
     "db:seed": "node scripts/seed-data-postgres.js",
+    "db:verify": "node scripts/verify-db.js",
+    "import:lxj": "node scripts/import-lxj-recipes.js",
     "test": "node test-api.js"
   },
   "keywords": [
