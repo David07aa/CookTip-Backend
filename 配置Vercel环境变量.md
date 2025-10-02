@@ -178,13 +178,29 @@ vercel --prod --token G6jj9jmjazCTlSAsQ7BYhbEf --yes
 your-super-secret-jwt-key-change-this-in-production-abc123xyz789
 ```
 
-或生成随机字符串：
-```bash
-# Windows PowerShell
+或使用命令生成随机字符串：
+
+**Windows CMD 命令**：
+```cmd
+:: 方法1: 使用 PowerShell 生成（推荐）
+powershell -Command "[System.Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))"
+
+:: 方法2: 使用时间戳+随机数
+echo jwt-secret-%RANDOM%%RANDOM%%RANDOM%%TIME:~0,2%%TIME:~3,2%%TIME:~6,2%
+```
+
+**Windows PowerShell 命令**：
+```powershell
+# 生成32字节的Base64编码字符串
 [System.Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
 
-# 或使用在线工具：https://www.random.org/strings/
+# 生成64字符的随机字符串
+-join ((65..90) + (97..122) + (48..57) | Get-Random -Count 64 | % {[char]$_})
 ```
+
+**在线工具**：
+- https://www.random.org/strings/
+- https://generate-secret.vercel.app/
 
 ### Q4: 配置后仍然 500 错误？
 
