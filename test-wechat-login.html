@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信登录接口测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #07c160;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #07c160;
+        }
+        button {
+            background: #07c160;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #06ad56;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .success {
+            border-color: #07c160;
+            background: #f0f9ff;
+        }
+        .error {
+            border-color: #fa5151;
+            background: #fff0f0;
+        }
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-ok {
+            background: #07c160;
+            color: white;
+        }
+        .status-fail {
+            background: #fa5151;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 微信登录接口测试工具</h1>
+        
+        <div class="test-section">
+            <h3>1. 测试分类接口（验证 API 基础连接）</h3>
+            <p>先测试一个已知正常的接口，确认 Vercel 服务正常</p>
+            <button onclick="testCategories()">测试 /api/categories</button>
+            <div id="categories-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 测试微信登录接口（主要测试）</h3>
+            <p>测试微信登录接口是否可以访问（使用模拟 code）</p>
+            <button onclick="testWechatLogin()">测试 /api/auth/wechat</button>
+            <div id="wechat-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. 测试所有 API 接口</h3>
+            <p>遍历测试所有接口的可访问性</p>
+            <button onclick="testAllAPIs()">测试所有接口</button>
+            <div id="all-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'https://cooktip-backend.vercel.app/api';
+
+        function showResult(elementId, message, isSuccess) {
+            const element = document.getElementById(elementId);
+            element.className = `result ${isSuccess ? 'success' : 'error'}`;
+            element.textContent = message;
+        }
+
+        async function testCategories() {
+            const resultId = 'categories-result';
+            showResult(resultId, '⏳ 正在测试...', true);
+
+            try {
+                const response = await fetch(`${BASE_URL}/categories`);
+                const data = await response.json();
+                
+                const message = `✅ 状态码: ${response.status}
+
+响应数据:
+${JSON.stringify(data, null, 2)}`;
+                
+                showResult(resultId, message, response.ok);
+            } catch (error) {
+                showResult(resultId, `❌ 请求失败:\n${error.message}`, false);
+            }
+        }
+
+        async function testWechatLogin() {
+            const resultId = 'wechat-result';
+            showResult(resultId, '⏳ 正在测试...', true);
+
+            try {
+                const response = await fetch(`${BASE_URL}/auth/wechat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: 'test_code_12345',
+                        nickName: '测试用户',
+                        avatar: 'https://example.com/avatar.jpg'
+                    })
+                });
+
+                const data = await response.json();
+                
+                let message = `状态码: ${response.status}
+
+响应数据:
+${JSON.stringify(data, null, 2)}
+
+`;
+
+                if (response.status === 404) {
+                    message += `\n❌ 404 错误：接口未找到
+可能原因：
+1. Vercel CDN 缓存未更新（等待 5-10 分钟）
+2. 路由配置问题
+3. 文件未正确部署`;
+                } else if (response.status === 401 || response.status === 400) {
+                    message += `\n✅ 接口存在！虽然返回错误（${response.status}），但这是正常的，
+因为使用的是测试 code。真实的 wx.login() 获取的 code 应该可以成功。`;
+                } else if (response.status === 200) {
+                    message += `\n✅ 登录成功！（不应该出现，除非测试 code 恰好有效）`;
+                } else if (response.status === 500) {
+                    message += `\n⚠️ 服务器错误：接口存在但执行失败，检查环境变量配置`;
+                }
+                
+                showResult(resultId, message, response.status !== 404);
+            } catch (error) {
+                showResult(resultId, `❌ 请求失败:\n${error.message}`, false);
+            }
+        }
+
+        async function testAllAPIs() {
+            const resultId = 'all-result';
+            showResult(resultId, '⏳ 正在测试所有接口...', true);
+
+            const apis = [
+                { method: 'GET', path: '/categories', name: '分类列表' },
+                { method: 'GET', path: '/recipes?page=1&limit=1', name: '食谱列表' },
+                { method: 'GET', path: '/search?keyword=鸡&page=1&pageSize=1', name: '搜索接口' },
+                { method: 'POST', path: '/auth/wechat', name: '微信登录', body: { code: 'test' } },
+                { method: 'GET', path: '/user/info', name: '用户信息' },
+                { method: 'GET', path: '/favorites', name: '收藏列表' },
+                { method: 'GET', path: '/likes', name: '点赞列表' }
+            ];
+
+            let results = '测试结果:\n\n';
+
+            for (const api of apis) {
+                try {
+                    const options = {
+                        method: api.method,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    };
+
+                    if (api.body) {
+                        options.body = JSON.stringify(api.body);
+                    }
+
+                    const response = await fetch(`${BASE_URL}${api.path}`, options);
+                    const statusClass = response.status === 404 ? '❌' : '✅';
+                    results += `${statusClass} ${api.name} (${api.method} ${api.path}): ${response.status}\n`;
+                } catch (error) {
+                    results += `❌ ${api.name}: 请求失败 - ${error.message}\n`;
+                }
+            }
+
+            showResult(resultId, results, true);
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('页面加载完成，可以开始测试');
+        };
+    </script>
+</body>
+</html>
+
