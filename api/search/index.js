@@ -42,31 +42,38 @@ module.exports = async (req, res) => {
     const limitNum = parseInt(pageSize);
 
     // 构建查询条件
-    const whereClauses = [
-      `r.status = 'published'`,
-      `(r.title ILIKE $1 OR r.introduction ILIKE $1)`
-    ];
-    const params = [`%${keyword}%`];
-    let paramIndex = 2;
+    const whereClauses = [];
+    const params = [];
+    let paramIndex = 1;
 
+    // 添加发布状态条件
+    whereClauses.push(`r.status = 'published'`);
+
+    // 添加关键词搜索条件
+    whereClauses.push(`(r.title ILIKE $${paramIndex} OR r.introduction ILIKE $${paramIndex})`);
+    params.push(`%${keyword}%`);
+    paramIndex++;
+
+    // 添加分类筛选
     if (category) {
       whereClauses.push(`r.category = $${paramIndex}`);
       params.push(category);
       paramIndex++;
     }
 
+    // 添加难度筛选
     if (difficulty) {
       whereClauses.push(`r.difficulty = $${paramIndex}`);
       params.push(difficulty);
       paramIndex++;
     }
 
-    const whereSQL = whereClauses.join(' AND ');
+    const whereSQL = whereClauses.filter(c => c).join(' AND ');
 
     // 查询总数
     const countQuery = `SELECT COUNT(*)::int as total FROM recipes r WHERE ${whereSQL}`;
     const countResult = await sql.query(countQuery, params);
-    const total = countResult.rows[0].total;
+    const total = countResult.rows[0]?.total || 0;
 
     // 查询搜索结果
     const listQuery = `
