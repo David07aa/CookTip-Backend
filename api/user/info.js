@@ -7,9 +7,11 @@ const { requireAuth } = require('../../middleware/auth');
  * PUT /api/user/info - 更新用户信息
  */
 module.exports = async (req, res) => {
+  // CORS 设置 - 增强版
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
+  res.setHeader('Access-Control-Max-Age', '86400');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
