@@ -56,6 +56,30 @@ node -r dotenv/config scripts/verify-db.js dotenv_config_path=.env.local
 vercel dev
 ```
 
+### 📦 部署流程
+
+**重要规则：所有代码更改后，必须提交 GitHub 并部署到 Vercel**
+
+#### 方式一：使用一键部署脚本（推荐）
+
+```powershell
+.\deploy.ps1 "你的提交信息"
+```
+
+#### 方式二：手动部署
+
+```bash
+# 1. 提交到 GitHub
+git add -A
+git commit -m "你的提交信息"
+git push origin main
+
+# 2. 部署到 Vercel
+vercel --prod --token <YOUR_TOKEN> --yes
+```
+
+详细部署规则请查看：[部署规则.md](./部署规则.md)
+
 ---
 
 ## 🍗 数据内容

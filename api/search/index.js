@@ -70,16 +70,8 @@ module.exports = async (req, res) => {
 
     const whereSQL = whereClauses.filter(c => c).join(' AND ');
 
-    // 调试日志
-    console.log('========== 搜索接口调试 ==========');
-    console.log('whereClauses:', whereClauses);
-    console.log('params:', params);
-    console.log('whereSQL:', whereSQL);
-    console.log('=====================================');
-
     // 查询总数
     const countQuery = `SELECT COUNT(*)::int as total FROM recipes r WHERE ${whereSQL}`;
-    console.log('countQuery:', countQuery);
     const countResult = await sql.query(countQuery, params);
     const total = countResult.rows[0]?.total || 0;
 
