@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证微信登录接口</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .test-card {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .test-card:hover {
+            border-color: #667eea;
+        }
+
+        .test-card h3 {
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-card p {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #ecfdf5;
+            border: 1px solid #6ee7b7;
+            color: #065f46;
+        }
+
+        .result.error {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        .result.info {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
+
+        .emoji {
+            font-size: 24px;
+        }
+
+        .summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+
+        .summary h3 {
+            margin-bottom: 15px;
+        }
+
+        .summary ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .summary li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .summary li:last-child {
+            border-bottom: none;
+        }
+
+        .code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 微信登录接口验证</h1>
+        <p class="subtitle">测试后端 API 是否正常工作</p>
+
+        <!-- 测试1 -->
+        <div class="test-card">
+            <h3>
+                <span class="emoji">📡</span>
+                测试 1: 基础连接
+                <span class="status pending" id="status1">待测试</span>
+            </h3>
+            <p>验证 Vercel 服务是否正常运行</p>
+            <button onclick="testCategories()" id="btn1">运行测试</button>
+            <div class="result" id="result1"></div>
+        </div>
+
+        <!-- 测试2 -->
+        <div class="test-card">
+            <h3>
+                <span class="emoji">🔑</span>
+                测试 2: 微信登录接口
+                <span class="status pending" id="status2">待测试</span>
+            </h3>
+            <p>验证登录接口是否可以正常访问（使用测试 code）</p>
+            <button onclick="testWechatLogin()" id="btn2">运行测试</button>
+            <div class="result" id="result2"></div>
+        </div>
+
+        <!-- 测试3 -->
+        <div class="test-card">
+            <h3>
+                <span class="emoji">🌐</span>
+                测试 3: CORS 配置
+                <span class="status pending" id="status3">待测试</span>
+            </h3>
+            <p>验证跨域配置是否正确（小程序访问必需）</p>
+            <button onclick="testCORS()" id="btn3">运行测试</button>
+            <div class="result" id="result3"></div>
+        </div>
+
+        <!-- 总结 -->
+        <div class="summary">
+            <h3>📋 判断标准</h3>
+            <ul>
+                <li>✅ 登录接口返回 <span class="code">401</span> 或 <span class="code">400</span> = 接口正常（测试code无效是预期的）</li>
+                <li>✅ 登录接口返回 <span class="code">200</span> = 接口正常（极少出现）</li>
+                <li>❌ 登录接口返回 <span class="code">404</span> = 等待 CDN 更新（5-10分钟）</li>
+                <li>⚠️ 登录接口返回 <span class="code">500</span> = 检查环境变量配置</li>
+                <li>⚠️ 返回 <span class="code">429</span> = 请求太频繁，等待1分钟后重试</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://cooktip-backend.vercel.app/api';
+
+        function showResult(id, message, type) {
+            const element = document.getElementById(`result${id}`);
+            element.className = `result ${type} show`;
+            element.innerHTML = message;
+        }
+
+        function updateStatus(id, status, text) {
+            const element = document.getElementById(`status${id}`);
+            element.className = `status ${status}`;
+            element.textContent = text;
+        }
+
+        function disableButton(id, disabled) {
+            const btn = document.getElementById(`btn${id}`);
+            btn.disabled = disabled;
+            if (disabled) {
+                btn.innerHTML = '<span class="loading"></span> 测试中...';
+            } else {
+                btn.textContent = '运行测试';
+            }
+        }
+
+        async function testCategories() {
+            updateStatus(1, 'pending', '测试中...');
+            disableButton(1, true);
+
+            try {
+                const response = await fetch(`${API_BASE}/categories`);
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    updateStatus(1, 'success', '✅ 正常');
+                    showResult(1, `<strong>✅ 连接成功！</strong><br><br>状态码: ${response.status}<br>返回数据: ${data.data.list.length} 个分类<br><br>说明: Vercel 服务正常运行`, 'success');
+                } else {
+                    throw new Error(`状态码: ${response.status}`);
+                }
+            } catch (error) {
+                updateStatus(1, 'error', '❌ 失败');
+                
+                if (error.message.includes('429')) {
+                    showResult(1, `<strong>⚠️ 请求太频繁</strong><br><br>错误: 429 Too Many Requests<br><br>解决方案: 等待 1 分钟后重试`, 'error');
+                } else {
+                    showResult(1, `<strong>❌ 连接失败</strong><br><br>错误: ${error.message}`, 'error');
+                }
+            } finally {
+                disableButton(1, false);
+            }
+        }
+
+        async function testWechatLogin() {
+            updateStatus(2, 'pending', '测试中...');
+            disableButton(2, true);
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/wechat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: 'test_code_12345',
+                        nickName: '测试用户',
+                        avatar: 'https://example.com/avatar.jpg'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.status === 200) {
+                    updateStatus(2, 'success', '✅ 正常');
+                    showResult(2, `<strong>✅ 登录成功！</strong><br><br>状态码: ${response.status}<br>消息: ${data.message}<br><br>说明: 接口正常（不应该出现，除非测试code有效）`, 'success');
+                } else if (response.status === 401) {
+                    updateStatus(2, 'success', '✅ 正常');
+                    showResult(2, `<strong>✅ 接口正常！</strong><br><br>状态码: ${response.status}<br>消息: ${data.message}<br><br>说明: 返回401是预期的，因为使用了测试code。<br>真实的 wx.login() 获取的 code 应该可以成功登录。`, 'success');
+                } else if (response.status === 400) {
+                    updateStatus(2, 'success', '✅ 正常');
+                    showResult(2, `<strong>✅ 接口正常！</strong><br><br>状态码: ${response.status}<br>消息: ${data.message}<br><br>说明: 参数验证正常工作`, 'success');
+                } else if (response.status === 404) {
+                    updateStatus(2, 'error', '❌ 404');
+                    showResult(2, `<strong>❌ 接口未找到</strong><br><br>状态码: ${response.status}<br><br>可能原因:<br>1. CDN 缓存未更新（等待 5-10 分钟）<br>2. 路由配置问题`, 'error');
+                } else if (response.status === 500) {
+                    updateStatus(2, 'error', '⚠️ 500');
+                    showResult(2, `<strong>⚠️ 服务器错误</strong><br><br>状态码: ${response.status}<br>消息: ${data.message}<br><br>可能原因:<br>1. 环境变量未配置（WECHAT_APPID, WECHAT_SECRET）<br>2. 数据库连接问题`, 'error');
+                } else {
+                    updateStatus(2, 'error', `❌ ${response.status}`);
+                    showResult(2, `<strong>未知错误</strong><br><br>状态码: ${response.status}<br>响应: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(2, 'error', '❌ 失败');
+                
+                if (error.message.includes('429')) {
+                    showResult(2, `<strong>⚠️ 请求太频繁</strong><br><br>错误: 429 Too Many Requests<br><br>解决方案: 等待 1 分钟后重试`, 'error');
+                } else if (error.message.includes('Failed to fetch')) {
+                    showResult(2, `<strong>❌ 请求失败</strong><br><br>错误: ${error.message}<br><br>可能原因:<br>1. CORS 配置问题<br>2. 网络连接问题<br>3. 接口不存在`, 'error');
+                } else {
+                    showResult(2, `<strong>❌ 请求异常</strong><br><br>错误: ${error.message}`, 'error');
+                }
+            } finally {
+                disableButton(2, false);
+            }
+        }
+
+        async function testCORS() {
+            updateStatus(3, 'pending', '测试中...');
+            disableButton(3, true);
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/wechat`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type',
+                        'Origin': window.location.origin
+                    }
+                });
+
+                const allowOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const allowMethods = response.headers.get('Access-Control-Allow-Methods');
+                const allowHeaders = response.headers.get('Access-Control-Allow-Headers');
+
+                if (allowOrigin) {
+                    updateStatus(3, 'success', '✅ 正常');
+                    showResult(3, `<strong>✅ CORS 配置正常！</strong><br><br>Allow-Origin: ${allowOrigin}<br>Allow-Methods: ${allowMethods}<br>Allow-Headers: ${allowHeaders}<br><br>说明: 小程序可以正常访问`, 'success');
+                } else {
+                    updateStatus(3, 'error', '❌ 失败');
+                    showResult(3, `<strong>⚠️ 未检测到 CORS 头部</strong><br><br>可能影响小程序访问`, 'error');
+                }
+            } catch (error) {
+                updateStatus(3, 'error', '❌ 失败');
+                showResult(3, `<strong>❌ CORS 测试失败</strong><br><br>错误: ${error.message}`, 'error');
+            } finally {
+                disableButton(3, false);
+            }
+        }
+
+        // 页面加载完成提示
+        window.onload = function() {
+            console.log('%c🔐 微信登录接口验证工具', 'color: #667eea; font-size: 20px; font-weight: bold');
+            console.log('%c点击按钮开始测试', 'color: #64748b; font-size: 14px');
+        };
+    </script>
+</body>
+</html>
+
