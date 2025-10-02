@@ -115,9 +115,10 @@ module.exports = async (req, res) => {
       // 查询总数
       const countQuery = `SELECT COUNT(*)::int as total FROM recipes ${whereClause}`;
       const countResult = await sql.query(countQuery, params);
-      const total = countResult.rows[0].total;
+      const total = countResult.rows[0]?.total || 0;
 
       // 查询列表
+      // 注意：sortField 已经过验证，安全地插入到 SQL 中
       const listQuery = `
         SELECT 
           r.id,
@@ -143,7 +144,7 @@ module.exports = async (req, res) => {
       `;
 
       const listResult = await sql.query(listQuery, [...params, limitNum, offset]);
-      const recipes = listResult.rows;
+      const recipes = listResult.rows || [];
 
       // 如果用户已登录，查询收藏和点赞状态
       if (req.user) {
@@ -271,11 +272,20 @@ module.exports = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('食谱接口错误:', error);
+    console.error('========== 食谱接口错误 ==========');
+    console.error('错误消息:', error.message);
+    console.error('错误堆栈:', error.stack);
+    console.error('请求方法:', req.method);
+    console.error('请求查询:', req.query);
+    console.error('=====================================');
+    
     res.status(500).json({
       code: 500,
-      message: '服务器错误',
-      data: null
+      message: process.env.NODE_ENV === 'production' ? '服务器错误' : error.message,
+      data: process.env.NODE_ENV === 'production' ? null : {
+        error: error.message,
+        stack: error.stack
+      }
     });
   }
 };

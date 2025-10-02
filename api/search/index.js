@@ -112,11 +112,19 @@ module.exports = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('搜索食谱错误:', error);
+    console.error('========== 搜索接口错误 ==========');
+    console.error('错误消息:', error.message);
+    console.error('错误堆栈:', error.stack);
+    console.error('请求查询:', req.query);
+    console.error('=====================================');
+    
     res.status(500).json({
       code: 500,
-      message: '服务器错误',
-      data: null
+      message: process.env.NODE_ENV === 'production' ? '服务器错误' : error.message,
+      data: process.env.NODE_ENV === 'production' ? null : {
+        error: error.message,
+        stack: error.stack
+      }
     });
   }
 };
