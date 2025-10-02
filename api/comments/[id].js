@@ -28,10 +28,21 @@ module.exports = async (req, res) => {
 
   const { id } = req.query;
 
-  if (!id) {
+  // 验证 id 参数
+  if (!id || id === 'undefined' || id === 'null') {
     return res.status(400).json({
       code: 400,
       message: '缺少评论ID',
+      data: null
+    });
+  }
+
+  // 验证 UUID 格式
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return res.status(400).json({
+      code: 400,
+      message: '评论ID格式不正确',
       data: null
     });
   }

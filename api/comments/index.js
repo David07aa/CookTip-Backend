@@ -20,11 +20,22 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const { recipeId, page = 1, limit = 20 } = req.query;
 
-      if (!recipeId) {
+      // 验证 recipeId 参数
+      if (!recipeId || recipeId === 'undefined' || recipeId === 'null') {
         return res.status(400).json({
           success: false,
           error: '参数错误',
           message: '缺少recipeId参数'
+        });
+      }
+
+      // 验证 UUID 格式
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(recipeId)) {
+        return res.status(400).json({
+          success: false,
+          error: '参数格式错误',
+          message: 'recipeId格式不正确'
         });
       }
 
@@ -87,6 +98,34 @@ module.exports = async (req, res) => {
           success: false,
           error: '参数错误',
           message: '缺少必填字段'
+        });
+      }
+
+      // 验证 recipeId 参数
+      if (recipeId === 'undefined' || recipeId === 'null') {
+        return res.status(400).json({
+          success: false,
+          error: '参数错误',
+          message: 'recipeId不能为空'
+        });
+      }
+
+      // 验证 UUID 格式
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(recipeId)) {
+        return res.status(400).json({
+          success: false,
+          error: '参数格式错误',
+          message: 'recipeId格式不正确'
+        });
+      }
+
+      // 验证 replyTo（如果存在）
+      if (replyTo && !uuidRegex.test(replyTo)) {
+        return res.status(400).json({
+          success: false,
+          error: '参数格式错误',
+          message: 'replyTo格式不正确'
         });
       }
 
