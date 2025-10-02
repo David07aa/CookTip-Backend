@@ -238,6 +238,137 @@
             font-size: 12px;
             word-break: break-all;
         }
+
+        .comparison-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-panel {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .comparison-panel.success-panel {
+            border-color: #28a745;
+            background: #f1f9f3;
+        }
+
+        .comparison-panel.error-panel {
+            border-color: #dc3545;
+            background: #fef5f5;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid currentColor;
+        }
+
+        .panel-header h3 {
+            margin: 0;
+            flex: 1;
+        }
+
+        .panel-count {
+            background: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .success-panel .panel-header {
+            color: #28a745;
+        }
+
+        .error-panel .panel-header {
+            color: #dc3545;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .result-item-title {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .result-item-status {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .status-200 { background: #28a745; }
+        .status-401 { background: #ffc107; color: #333; }
+        .status-400 { background: #fd7e14; }
+        .status-404 { background: #6c757d; }
+        .status-500 { background: #dc3545; }
+
+        .result-item-endpoint {
+            font-family: monospace;
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .result-item-data {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -262,6 +393,40 @@
             <div id="globalSummary" class="summary" style="display: none;">
                 <h3>测试结果汇总</h3>
                 <div id="summaryContent"></div>
+            </div>
+        </div>
+
+        <!-- Comparison Section -->
+        <div id="comparisonSection" class="comparison-section" style="display: none;">
+            <h2>📊 测试结果对比</h2>
+            <div class="comparison-grid">
+                <!-- Success Panel -->
+                <div class="comparison-panel success-panel">
+                    <div class="panel-header">
+                        <h3>✅ 成功响应</h3>
+                        <span class="panel-count" id="successCount">0</span>
+                    </div>
+                    <div id="successResults">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>暂无成功响应</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Panel -->
+                <div class="comparison-panel error-panel">
+                    <div class="panel-header">
+                        <h3>❌ 失败响应</h3>
+                        <span class="panel-count" id="errorCount">0</span>
+                    </div>
+                    <div id="errorResults">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>暂无失败响应</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -459,6 +624,23 @@
         let savedToken = '';
         let savedRecipeId = '';
         let savedUserId = '';
+        let testResults = []; // 存储所有测试结果
+
+        // API 名称映射
+        const apiNames = {
+            1: { name: '微信登录', endpoint: 'POST /api/auth/wechat' },
+            2: { name: '用户信息', endpoint: 'GET /api/user/info' },
+            3: { name: '菜谱列表', endpoint: 'GET /api/recipes' },
+            4: { name: '菜谱详情', endpoint: 'GET /api/recipes/:id' },
+            5: { name: '搜索菜谱', endpoint: 'GET /api/search' },
+            6: { name: '评论列表', endpoint: 'GET /api/comments' },
+            7: { name: '收藏列表', endpoint: 'GET /api/favorites' },
+            8: { name: '分类列表', endpoint: 'GET /api/categories' },
+            9: { name: '用户详情', endpoint: 'GET /api/users/:id' },
+            10: { name: '创建评论', endpoint: 'POST /api/comments' },
+            11: { name: '添加收藏', endpoint: 'POST /api/favorites' },
+            12: { name: '点赞操作', endpoint: 'POST /api/likes' }
+        };
 
         // 显示 Token
         function displayToken() {
@@ -483,6 +665,84 @@
             resultDiv.textContent = JSON.stringify(data, null, 2);
             
             statusDiv.className = 'status-indicator ' + (isSuccess ? 'status-success' : 'status-error');
+
+            // 记录测试结果
+            const resultIndex = testResults.findIndex(r => r.id === id);
+            const resultData = {
+                id: id,
+                name: apiNames[id].name,
+                endpoint: apiNames[id].endpoint,
+                status: data.status || (data.error ? 'error' : 'unknown'),
+                isSuccess: isSuccess,
+                data: data
+            };
+
+            if (resultIndex >= 0) {
+                testResults[resultIndex] = resultData;
+            } else {
+                testResults.push(resultData);
+            }
+        }
+
+        // 更新对比面板
+        function updateComparisonPanel() {
+            const successResults = testResults.filter(r => r.isSuccess);
+            const errorResults = testResults.filter(r => !r.isSuccess);
+
+            // 更新计数
+            document.getElementById('successCount').textContent = successResults.length;
+            document.getElementById('errorCount').textContent = errorResults.length;
+
+            // 更新成功面板
+            const successPanel = document.getElementById('successResults');
+            if (successResults.length === 0) {
+                successPanel.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>暂无成功响应</p>
+                    </div>
+                `;
+            } else {
+                successPanel.innerHTML = successResults.map(result => `
+                    <div class="result-item">
+                        <div class="result-item-header">
+                            <span class="result-item-title">${result.name}</span>
+                            <span class="result-item-status status-${result.status}">
+                                ${result.status}
+                            </span>
+                        </div>
+                        <div class="result-item-endpoint">${result.endpoint}</div>
+                        <div class="result-item-data">${JSON.stringify(result.data, null, 2)}</div>
+                    </div>
+                `).join('');
+            }
+
+            // 更新失败面板
+            const errorPanel = document.getElementById('errorResults');
+            if (errorResults.length === 0) {
+                errorPanel.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>暂无失败响应</p>
+                    </div>
+                `;
+            } else {
+                errorPanel.innerHTML = errorResults.map(result => `
+                    <div class="result-item">
+                        <div class="result-item-header">
+                            <span class="result-item-title">${result.name}</span>
+                            <span class="result-item-status status-${result.status}">
+                                ${result.status || 'ERROR'}
+                            </span>
+                        </div>
+                        <div class="result-item-endpoint">${result.endpoint}</div>
+                        <div class="result-item-data">${JSON.stringify(result.data, null, 2)}</div>
+                    </div>
+                `).join('');
+            }
+
+            // 显示对比面板
+            document.getElementById('comparisonSection').style.display = 'block';
         }
 
         // 通用请求函数
@@ -679,7 +939,8 @@
         // 一键测试所有接口
         async function testAllAPIs() {
             document.getElementById('globalSummary').style.display = 'none';
-            const results = [];
+            document.getElementById('comparisonSection').style.display = 'none';
+            testResults = []; // 清空之前的结果
 
             // 按顺序测试
             const tests = [
@@ -729,6 +990,9 @@
                 `;
 
                 document.getElementById('globalSummary').style.display = 'block';
+                
+                // 更新对比面板
+                updateComparisonPanel();
             }, 1000);
         }
 
