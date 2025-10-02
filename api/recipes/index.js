@@ -71,41 +71,48 @@ module.exports = async (req, res) => {
       const limitNum = parseInt(limit);
 
       // 构建查询条件
-      const conditions = [`status = 'published'`];
+      const conditions = [`r.status = 'published'`];
       const params = [];
       let paramIndex = 1;
 
       if (category) {
-        conditions.push(`category = $${paramIndex}`);
+        conditions.push(`r.category = $${paramIndex}`);
         params.push(category);
         paramIndex++;
       }
 
       if (difficulty) {
-        conditions.push(`difficulty = $${paramIndex}`);
+        conditions.push(`r.difficulty = $${paramIndex}`);
         params.push(difficulty);
         paramIndex++;
       }
 
       if (cookTime) {
-        conditions.push(`cook_time <= $${paramIndex}`);
+        conditions.push(`r.cook_time <= $${paramIndex}`);
         params.push(parseInt(cookTime));
         paramIndex++;
       }
 
       if (userId) {
-        conditions.push(`author_id = $${paramIndex}::uuid`);
+        conditions.push(`r.author_id = $${paramIndex}::uuid`);
         params.push(userId);
         paramIndex++;
       }
 
       if (keyword) {
-        conditions.push(`(title ILIKE $${paramIndex} OR introduction ILIKE $${paramIndex})`);
+        conditions.push(`(r.title ILIKE $${paramIndex} OR r.introduction ILIKE $${paramIndex})`);
         params.push(`%${keyword}%`);
         paramIndex++;
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // 调试日志
+      console.log('========== 食谱列表接口调试 ==========');
+      console.log('conditions:', conditions);
+      console.log('params:', params);
+      console.log('whereClause:', whereClause);
+      console.log('=====================================');
 
       // 验证排序字段
       const validSortFields = ['created_at', 'views', 'likes', 'collects'];
@@ -113,7 +120,8 @@ module.exports = async (req, res) => {
       const sortOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
       // 查询总数
-      const countQuery = `SELECT COUNT(*)::int as total FROM recipes ${whereClause}`;
+      const countQuery = `SELECT COUNT(*)::int as total FROM recipes r ${whereClause}`;
+      console.log('countQuery:', countQuery);
       const countResult = await sql.query(countQuery, params);
       const total = countResult.rows[0]?.total || 0;
 
