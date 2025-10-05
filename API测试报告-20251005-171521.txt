@@ -1,0 +1,34 @@
+﻿========================================
+CookTip 后端接口测试报告
+========================================
+
+测试时间: 2025-10-05 17:15:21
+测试服务器: https://cooktip-backend.vercel.app
+
+测试统计:
+- 总计: 13 个接口
+- ✅ 可用: 11 个
+- ❌ 失败: 2 个
+
+详细结果:
+
+Name     Path                     Method Status Result                     
+----     ----                     ------ ------ ------                     
+微信登录     /api/auth/wechat         POST      404 ❌ 不存在                      
+获取菜谱列表   /api/recipes             GET     Error ❌ 远程服务器返回错误: (500) 内部服务器错误。
+获取菜谱详情   /api/recipes/1           GET       404 ❌ 不存在                      
+获取分类列表   /api/categories          GET     Error ❌ 远程服务器返回错误: (500) 内部服务器错误。
+搜索菜谱     /api/search?q=test       GET       400 ✅ 接口存在                     
+获取用户信息   /api/user/info           GET       404 ❌ 不存在                      
+获取用户菜谱   /api/user/recipes        GET       404 ❌ 不存在                      
+获取指定用户信息 /api/users/1             GET       404 ❌ 不存在                      
+获取收藏列表   /api/favorites           GET       401 ✅ 接口存在                     
+添加收藏     /api/favorites           POST      401 ✅ 接口存在                     
+添加点赞     /api/likes               POST      401 ✅ 接口存在                     
+获取评论列表   /api/comments?recipeId=1 GET       400 ✅ 接口存在                     
+添加评论     /api/comments            POST      401 ✅ 接口存在                     
+
+
+
+
+========================================
