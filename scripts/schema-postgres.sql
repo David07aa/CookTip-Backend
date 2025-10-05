@@ -4,13 +4,18 @@
 -- 启用 UUID 扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. 用户表
+-- 1. 用户表（根据微信登录需求设计）
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   openid VARCHAR(100) UNIQUE NOT NULL,
-  nick_name VARCHAR(100),
-  avatar TEXT,
-  bio TEXT,
+  union_id VARCHAR(100),                        -- 微信 unionid（绑定开放平台才有）
+  session_key VARCHAR(255),                     -- 微信会话密钥（用于解密敏感数据）
+  nick_name VARCHAR(100) DEFAULT '微信用户',     -- 用户昵称
+  avatar TEXT,                                  -- 用户头像 URL
+  phone VARCHAR(20),                            -- 手机号
+  email VARCHAR(100),                           -- 邮箱
+  gender SMALLINT DEFAULT 0,                    -- 性别：0-未知，1-男，2-女
+  bio TEXT,                                     -- 个人简介
   is_vip BOOLEAN DEFAULT FALSE,
   followers INTEGER DEFAULT 0,
   following INTEGER DEFAULT 0,
@@ -21,6 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_openid ON users(openid);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- 2. 食谱表
 CREATE TABLE IF NOT EXISTS recipes (
