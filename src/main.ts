@@ -10,15 +10,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // 临时调试：打印环境变量（部署成功后请删除）
-  console.log('🔍 Environment Variables Check:');
-  console.log('DB_HOST:', configService.get('DB_HOST'));
-  console.log('DB_PORT:', configService.get('DB_PORT'));
-  console.log('DB_USERNAME:', configService.get('DB_USERNAME') ? '✅ Set' : '❌ Empty');
-  console.log('DB_DATABASE:', configService.get('DB_DATABASE'));
-  console.log('PORT:', configService.get('PORT'));
-  console.log('NODE_ENV:', configService.get('NODE_ENV'));
-
   // 设置全局前缀
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
   app.setGlobalPrefix(apiPrefix);
