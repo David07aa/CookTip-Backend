@@ -1,0 +1,29 @@
+{
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "version": "2.0",
+  "envId": "{{env.ENV_ID}}",
+  "functionRoot": "./functions",
+  "framework": {
+    "name": "cooktip-backend",
+    "plugins": {
+      "container": {
+        "use": "@cloudbase/framework-plugin-container",
+        "inputs": {
+          "serviceName": "cooktip-api",
+          "servicePath": "/",
+          "dockerfilePath": "./Dockerfile",
+          "containerPort": 3000,
+          "envVariables": {
+            "NODE_ENV": "production"
+          },
+          "uploadType": "container",
+          "cpu": 1,
+          "mem": 2,
+          "minNum": 1,
+          "maxNum": 5
+        }
+      }
+    }
+  }
+}
+
