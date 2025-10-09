@@ -73,7 +73,10 @@ export class RecipeService {
         break;
       case 'recommended':
         // 推荐算法：综合考虑点赞、收藏、浏览量
-        queryBuilder.orderBy('(recipe.likes * 3 + recipe.favorites * 2 + recipe.views * 0.1)', 'DESC');
+        // 使用 addSelect 和 orderBy 来处理计算字段
+        queryBuilder
+          .addSelect('(recipe.likes * 3 + recipe.favorites * 2 + recipe.views * 0.1)', 'score')
+          .orderBy('score', 'DESC');
         break;
       case 'latest':
       default:

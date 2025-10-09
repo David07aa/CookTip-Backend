@@ -28,6 +28,31 @@ import { Public } from '../../common/decorators/public.decorator';
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
+  // 兼容查询字符串方式的评论接口
+  @Get('comments')
+  @Public()
+  @ApiOperation({ summary: '获取评论列表（通过查询参数）' })
+  @ApiQuery({ name: 'recipeId', required: true, type: Number })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'sort', required: false, type: String })
+  @ApiResponse({ status: 200, description: '获取成功' })
+  async getComments(
+    @Query('recipeId', ParseIntPipe) recipeId: number,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('sort') sort: string = 'latest',
+    @CurrentUser('id') currentUserId?: number,
+  ) {
+    return this.commentService.getRecipeComments(
+      recipeId,
+      page,
+      limit,
+      sort,
+      currentUserId,
+    );
+  }
+
   @Get('recipes/:recipeId/comments')
   @Public()
   @ApiOperation({ summary: '获取食谱评论列表' })
