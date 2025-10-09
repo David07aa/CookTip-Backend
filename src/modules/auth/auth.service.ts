@@ -20,7 +20,11 @@ export class AuthService {
    * 微信登录
    */
   async wechatLogin(wechatLoginDto: WechatLoginDto) {
-    const { code, nickname, avatar } = wechatLoginDto;
+    const { code, nickname, nickName, avatar, avatarUrl } = wechatLoginDto;
+
+    // 兼容两种命名方式：nickname/nickName, avatar/avatarUrl
+    const userNickname = nickName || nickname;
+    const userAvatar = avatarUrl || avatar;
 
     // 1. 通过 code 换取 openid 和 session_key
     const { openid, session_key } = await this.code2Session(code);
@@ -32,14 +36,14 @@ export class AuthService {
       // 新用户，创建账户
       user = this.userRepository.create({
         openid,
-        nickname: nickname || '美食爱好者',
-        avatar: avatar || '',
+        nickname: userNickname || '美食爱好者',
+        avatar: userAvatar || '',
       });
       await this.userRepository.save(user);
     } else {
       // 老用户，更新信息
-      if (nickname) user.nickname = nickname;
-      if (avatar) user.avatar = avatar;
+      if (userNickname) user.nickname = userNickname;
+      if (userAvatar) user.avatar = userAvatar;
       await this.userRepository.save(user);
     }
 
@@ -104,8 +108,8 @@ export class AuthService {
    * 通过 code 换取 openid
    */
   private async code2Session(code: string) {
-    const appid = this.configService.get('WECHAT_APPID');
-    const secret = this.configService.get('WECHAT_SECRET');
+    const appid = this.configService.get('WX_APPID') || this.configService.get('WECHAT_APPID');
+    const secret = this.configService.get('WX_SECRET') || this.configService.get('WECHAT_SECRET');
 
     const url = `https://api.weixin.qq.com/sns/jscode2session`;
     const params = {
