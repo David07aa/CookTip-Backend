@@ -9,6 +9,7 @@ README.md
 .vscode
 .idea
 coverage
-uploads
+# uploads 目录包含老乡鸡图片，需要打包进镜像
+# uploads
 *.md
 
