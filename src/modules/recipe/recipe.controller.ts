@@ -39,6 +39,7 @@ export class RecipeController {
   @ApiQuery({ name: 'difficulty', required: false, type: String })
   @ApiQuery({ name: 'cook_time', required: false, type: Number })
   @ApiQuery({ name: 'sort', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
   @ApiQuery({ name: 'tag', required: false, type: String })
   @ApiResponse({ status: 200, description: '获取成功' })
   async getRecipes(
@@ -47,17 +48,20 @@ export class RecipeController {
     @Query('category_id') categoryId?: number,
     @Query('difficulty') difficulty?: string,
     @Query('cook_time') cookTime?: number,
-    @Query('sort') sort: string = 'latest',
+    @Query('sort') sort?: string,
+    @Query('sortBy') sortBy?: string,
     @Query('tag') tag?: string,
     @CurrentUser('id') currentUserId?: number,
   ) {
+    // 支持 sort 和 sortBy 两种参数名
+    const sortParam = sortBy || sort || 'latest';
     return this.recipeService.getRecipes(
       page,
       limit,
       categoryId,
       difficulty,
       cookTime,
-      sort,
+      sortParam,
       tag,
       currentUserId,
     );

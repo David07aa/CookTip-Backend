@@ -71,6 +71,10 @@ export class RecipeService {
       case 'popular':
         queryBuilder.orderBy('recipe.views', 'DESC');
         break;
+      case 'recommended':
+        // 推荐算法：综合考虑点赞、收藏、浏览量
+        queryBuilder.orderBy('(recipe.likes * 3 + recipe.favorites * 2 + recipe.views * 0.1)', 'DESC');
+        break;
       case 'latest':
       default:
         queryBuilder.orderBy('recipe.created_at', 'DESC');
