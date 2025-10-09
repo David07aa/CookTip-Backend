@@ -46,3 +46,15 @@ lerna-debug.log*
 *.tmp
 *.temp
 
+# Database backups
+backup_*.json
+
+# Migration scripts (temporary)
+check-and-init-db.js
+add-categories-table.js
+fix-table-structure.js
+analyze-existing-db.js
+migrate-database.js
+insert-data.js
+verify-database.js
+
