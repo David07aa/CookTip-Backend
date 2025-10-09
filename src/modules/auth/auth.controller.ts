@@ -21,6 +21,17 @@ export class AuthController {
     return this.authService.wechatLogin(wechatLoginDto);
   }
 
+  // 兼容前端的 wx-login 路由
+  @Public()
+  @Post('wx-login')
+  @HttpCode(200)
+  @ApiOperation({ summary: '微信登录（兼容路由）' })
+  @ApiResponse({ status: 200, description: '登录成功' })
+  @ApiResponse({ status: 401, description: '登录失败' })
+  async wxLogin(@Body() wechatLoginDto: WechatLoginDto) {
+    return this.authService.wechatLogin(wechatLoginDto);
+  }
+
   @Post('refresh')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
