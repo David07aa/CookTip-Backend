@@ -23,11 +23,11 @@ import { StatsModule } from './modules/stats/stats.module';
       envFilePath: '.env',
     }),
 
-    // 静态文件服务（托管上传的图片）
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
-    }),
+    // 静态文件服务（图片已迁移到对象存储，此配置保留备用）
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, '..', 'uploads'),
+    //   serveRoot: '/uploads',
+    // }),
 
     // 数据库模块
     TypeOrmModule.forRootAsync({

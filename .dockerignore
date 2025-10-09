@@ -9,7 +9,9 @@ README.md
 .vscode
 .idea
 coverage
-# uploads 目录包含老乡鸡图片，需要打包进镜像
-# uploads
+
+# uploads 目录（图片已迁移到对象存储，无需打包进镜像）
+uploads
+
 *.md
 

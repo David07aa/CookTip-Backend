@@ -27,8 +27,8 @@ RUN npm ci --only=production && npm cache clean --force
 # 从构建阶段复制编译后的文件
 COPY --from=builder /app/dist ./dist
 
-# 从构建阶段复制上传目录（包含老乡鸡图片）
-COPY --from=builder /app/uploads ./uploads
+# 注意：图片已迁移到对象存储，无需复制 uploads 目录
+# COPY --from=builder /app/uploads ./uploads
 
 # 暴露端口
 EXPOSE 3000

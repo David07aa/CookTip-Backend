@@ -39,9 +39,8 @@ lerna-debug.log*
 .env.local
 .env.production
 
-# Uploads (忽略用户上传的文件，但保留老乡鸡图片)
-/uploads/*
-!/uploads/images/
+# Uploads (图片已迁移到对象存储，完全忽略 uploads 目录)
+/uploads/
 
 # Temp files
 *.tmp
