@@ -1,0 +1,25 @@
+{
+  "NODE_ENV": "production",
+  "PORT": "3000",
+  "API_PREFIX": "api/v1",
+  "DB_TYPE": "mysql",
+  "DB_HOST": "10.32.104.73",
+  "DB_PORT": "3306",
+  "DB_USERNAME": "root",
+  "DB_PASSWORD": "050710Xzl",
+  "DB_DATABASE": "cooktip",
+  "DB_CHARSET": "utf8mb4",
+  "DB_SYNCHRONIZE": "false",
+  "JWT_SECRET": "/U6EkG+Zwgr99V642k6CHexH6CCwgoPQL2Pl7/QCQZ8=",
+  "JWT_EXPIRES_IN": "7d",
+  "WX_APPID": "wx8486e57500ac0a55",
+  "WECHAT_APPID": "wx8486e57500ac0a55",
+  "WX_SECRET": "bd4c652097608bb064350cc7e3b5801c",
+  "WECHAT_SECRET": "bd4c652097608bb064350cc7e3b5801c",
+  "CDN_BASE_URL": "https://796a-yjsp-wxxcx-2g4wvlv66f316313-1367462091.storage.ap-shanghai.myqcloud.com",
+  "UPLOAD_DESTINATION": "/app/uploads",
+  "MAX_FILE_SIZE": "10485760",
+  "THROTTLE_TTL": "60",
+  "THROTTLE_LIMIT": "10"
+}
+

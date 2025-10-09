@@ -14,6 +14,7 @@ import { ShoppingListModule } from './modules/shopping-list/shopping-list.module
 import { CategoryModule } from './modules/category/category.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { StatsModule } from './modules/stats/stats.module';
     UploadModule,
     StatsModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
 
