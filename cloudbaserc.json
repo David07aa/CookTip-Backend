@@ -20,7 +20,9 @@
           "cpu": 1,
           "mem": 2,
           "minNum": 1,
-          "maxNum": 5
+          "maxNum": 5,
+          "customLogs": "stdout",
+          "initialDelaySeconds": 10
         }
       }
     }
