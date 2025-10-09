@@ -39,8 +39,9 @@ async function updateDatabase() {
     const [recipes] = await connection.execute(`
       SELECT id, title, cover_image 
       FROM recipes 
-      WHERE cover_image LIKE '/uploads/images/laoxiangji/%' 
-         OR cover_image LIKE '/images/laoxiangji/%'
+      WHERE cover_image LIKE '%/uploads/images/laoxiangji/%' 
+         OR cover_image LIKE '%/images/laoxiangji/%'
+         OR cover_image LIKE 'https://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com/uploads/images/laoxiangji/%'
     `);
 
     if (recipes.length === 0) {
@@ -60,6 +61,7 @@ async function updateDatabase() {
         // 提取文件名
         // /uploads/images/laoxiangji/大排面.png → 大排面.png
         // /images/laoxiangji/大排面.png → 大排面.png
+        // https://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com/uploads/images/laoxiangji/大排面.png → 大排面.png
         const filename = recipe.cover_image.split('/').pop();
         
         // 生成新的URL
