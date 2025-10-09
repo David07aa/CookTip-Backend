@@ -39,8 +39,9 @@ lerna-debug.log*
 .env.local
 .env.production
 
-# Uploads
-/uploads
+# Uploads (忽略用户上传的文件，但保留老乡鸡图片)
+/uploads/*
+!/uploads/images/
 
 # Temp files
 *.tmp
