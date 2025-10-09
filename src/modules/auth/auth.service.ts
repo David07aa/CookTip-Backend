@@ -111,6 +111,17 @@ export class AuthService {
     const appid = this.configService.get('WX_APPID') || this.configService.get('WECHAT_APPID');
     const secret = this.configService.get('WX_SECRET') || this.configService.get('WECHAT_SECRET');
 
+    // 调试日志
+    console.log('🔐 微信登录 - code2Session 开始');
+    console.log('  - Code 长度:', code?.length);
+    console.log('  - AppID 存在:', !!appid, appid ? `(${appid.substring(0, 6)}...)` : '未配置');
+    console.log('  - Secret 存在:', !!secret, secret ? '(已配置)' : '未配置');
+
+    if (!appid || !secret) {
+      console.error('❌ 微信配置缺失: AppID 或 Secret 未配置');
+      throw new UnauthorizedException('微信配置错误，请联系管理员');
+    }
+
     const url = `https://api.weixin.qq.com/sns/jscode2session`;
     const params = {
       appid,
@@ -120,18 +131,36 @@ export class AuthService {
     };
 
     try {
+      console.log('📡 调用微信 API:', url);
       const response = await axios.get(url, { params });
+      console.log('📥 微信 API 响应:', JSON.stringify(response.data));
+      
       const { openid, session_key, errcode, errmsg } = response.data;
 
       if (errcode) {
+        console.error('❌ 微信返回错误码:', errcode, errmsg);
         throw new UnauthorizedException(
-          `微信登录失败: ${errmsg} (code: ${errcode})`,
+          `微信登录失败: ${errmsg} (错误码: ${errcode})`,
         );
       }
 
+      if (!openid) {
+        console.error('❌ 微信未返回 openid');
+        throw new UnauthorizedException('微信登录失败: 未获取到用户信息');
+      }
+
+      console.log('✅ 获取 openid 成功:', openid.substring(0, 8) + '...');
       return { openid, session_key };
     } catch (error) {
-      console.error('微信登录错误:', error);
+      console.error('❌ 微信登录异常:', error.message);
+      console.error('   完整错误:', error);
+      
+      // 如果是已经抛出的 UnauthorizedException，直接传递
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      
+      // 其他错误（网络错误等）
       throw new UnauthorizedException('微信登录失败，请重试');
     }
   }
