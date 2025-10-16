@@ -97,15 +97,26 @@ function sendLoginRequest(loginData) {
         }
       },
       success: (res) => {
-        console.log('📥 [WechatLogin] 后端响应:', res);
+        console.log('📥 [WechatLogin] 云函数响应:', res);
 
-        if (res.result && res.result.statusCode === 200) {
-          const responseData = res.result.data;
+        // 检查云函数是否调用成功
+        if (!res.result) {
+          console.error('❌ [WechatLogin] 云函数返回格式错误:', res);
+          reject(new Error('云函数调用失败'));
+          return;
+        }
 
-          if (responseData.code === 200 && responseData.data) {
+        const { statusCode, data } = res.result;
+        console.log('📊 [WechatLogin] HTTP状态码:', statusCode);
+        console.log('📦 [WechatLogin] 响应数据:', data);
+
+        // 处理不同的状态码
+        if (statusCode === 200) {
+          // 成功
+          if (data && data.code === 200 && data.data) {
             console.log('✅ [WechatLogin] 登录成功!');
             
-            const { access_token, user } = responseData.data;
+            const { access_token, user } = data.data;
 
             // 保存用户信息和 token 到本地
             wx.setStorageSync('access_token', access_token);
@@ -119,12 +130,27 @@ function sendLoginRequest(loginData) {
               userInfo: user
             });
           } else {
-            console.error('❌ [WechatLogin] 登录失败:', responseData.message);
-            reject(new Error(responseData.message || '登录失败'));
+            console.error('❌ [WechatLogin] 登录失败:', data?.message || '未知错误');
+            reject(new Error(data?.message || '登录失败'));
           }
+        } else if (statusCode === 401) {
+          // 401 错误 - 这不应该发生在登录接口
+          console.error('❌ [WechatLogin] 后端返回401错误（认证失败）');
+          console.error('   可能原因：');
+          console.error('   1. 微信AppID或Secret配置错误');
+          console.error('   2. 微信code无效或已使用');
+          console.error('   3. 后端认证守卫配置错误');
+          console.error('   详细信息:', data);
+          
+          const errorMsg = data?.message || '登录认证失败，请检查配置';
+          reject(new Error(errorMsg));
         } else {
-          console.error('❌ [WechatLogin] 请求失败:', res.result);
-          reject(new Error('登录请求失败'));
+          // 其他错误
+          console.error('❌ [WechatLogin] 后端返回错误，状态码:', statusCode);
+          console.error('   错误信息:', data);
+          
+          const errorMsg = data?.message || `请求失败（状态码：${statusCode}）`;
+          reject(new Error(errorMsg));
         }
       },
       fail: (err) => {
