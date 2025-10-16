@@ -18,6 +18,7 @@ exports.main = async (event, context) => {
     method: event.method,
     path: event.path,
     hasData: !!event.data,
+    hasBody: !!event.body,
     hasHeaders: !!event.headers
   })
 
@@ -25,9 +26,13 @@ exports.main = async (event, context) => {
     method = 'GET',
     path = '/',
     data = {},
+    body = {},  // 支持 body 参数
     headers = {},
     query = {}
   } = event
+  
+  // 兼容 body 和 data 参数，优先使用 body
+  const requestData = Object.keys(body).length > 0 ? body : data
 
   try {
     // 引入 axios（云函数环境中需要先安装依赖）
@@ -61,9 +66,10 @@ exports.main = async (event, context) => {
 
     // 根据请求方法添加数据
     if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
-      requestConfig.data = data
-    } else if (method.toUpperCase() === 'GET' && Object.keys(data).length > 0) {
-      requestConfig.params = data
+      requestConfig.data = requestData
+      console.log('请求体数据:', JSON.stringify(requestData))
+    } else if (method.toUpperCase() === 'GET' && Object.keys(requestData).length > 0) {
+      requestConfig.params = requestData
     }
 
     // 发送请求到云托管后端
