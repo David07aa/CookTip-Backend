@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import * as https from 'https';
 import { User } from '../../entities/user.entity';
 import { WechatLoginDto } from './dto/wechat-login.dto';
 
@@ -136,7 +137,16 @@ export class AuthService {
 
     try {
       console.log('📡 调用微信 API:', url);
-      const response = await axios.get(url, { params });
+      
+      // 创建 HTTPS Agent，跳过 SSL 证书验证（解决云托管环境的证书问题）
+      const httpsAgent = new https.Agent({
+        rejectUnauthorized: false, // 跳过证书验证
+      });
+      
+      const response = await axios.get(url, { 
+        params,
+        httpsAgent, // 使用自定义 HTTPS Agent
+      });
       console.log('📥 微信 API 响应:', JSON.stringify(response.data));
       
       const { openid, session_key, errcode, errmsg } = response.data;
