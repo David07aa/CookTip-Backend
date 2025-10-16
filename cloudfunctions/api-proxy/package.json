@@ -1,0 +1,16 @@
+{
+  "name": "api-proxy",
+  "version": "1.0.0",
+  "description": "CookTip API 代理云函数，转发小程序请求到云托管后端",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "CookTip Team",
+  "license": "MIT",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "axios": "^1.6.2"
+  }
+}
+

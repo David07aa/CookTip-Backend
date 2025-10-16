@@ -132,9 +132,11 @@ git push origin main
 
 | 服务 | 地址 |
 |------|------|
-| API 基础地址 | https://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com/api/v1 |
-| API 文档 | https://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com/api/docs |
+| API 基础地址 | https://yjsp-ytg-191595-4-1367462091.sh.run.tcloudbase.com/api/v1 |
+| API 文档 | https://yjsp-ytg-191595-4-1367462091.sh.run.tcloudbase.com/api/docs |
 | 对象存储 | https://796a-yjsp-wxxcx-2g4wvlv66f316313-1367462091.storage.ap-shanghai.myqcloud.com |
+
+**⚠️ 注意**：当前使用公网测试地址，生产环境建议配置自定义域名。
 
 ---
 
