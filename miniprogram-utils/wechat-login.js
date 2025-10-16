@@ -8,72 +8,60 @@ const API_BASE_URL = 'https://yjsp-ytg-191595-4-1367462091.sh.run.tcloudbase.com
 
 /**
  * 微信一键登录
+ * ⚠️ 重要：此方法必须在用户点击事件中直接调用
  * @returns {Promise} 返回登录结果
  */
 function wechatLogin() {
   return new Promise((resolve, reject) => {
-    console.log('🔐 开始微信登录流程...');
+    console.log('🔐 [WechatLogin] 开始微信登录流程...');
 
-    // 步骤1: 调用 wx.login 获取 code
-    wx.login({
-      success: (loginRes) => {
-        if (loginRes.code) {
-          console.log('✅ 获取登录凭证成功, code:', loginRes.code);
-          
-          // 步骤2: 获取用户信息授权
-          getUserProfile(loginRes.code)
-            .then(resolve)
-            .catch(reject);
-        } else {
-          console.error('❌ wx.login 失败:', loginRes.errMsg);
-          reject(new Error('获取登录凭证失败'));
-        }
-      },
-      fail: (err) => {
-        console.error('❌ wx.login 调用失败:', err);
-        reject(err);
-      }
-    });
-  });
-}
-
-/**
- * 获取用户信息并完成登录
- * @param {string} code - 微信登录凭证
- * @returns {Promise}
- */
-function getUserProfile(code) {
-  return new Promise((resolve, reject) => {
-    console.log('👤 开始获取用户信息...');
-
-    // 调用 wx.getUserProfile 获取用户信息
-    // 注意：必须由用户主动触发（如点击按钮）
+    // 步骤1: 先获取用户信息授权（必须在用户点击的同步上下文中调用）
+    console.log('👤 [WechatLogin] 调用 wx.getUserProfile...');
     wx.getUserProfile({
       desc: '用于完善用户资料', // 声明获取用户信息的用途
       lang: 'zh_CN',
       success: (profileRes) => {
-        console.log('✅ 获取用户信息成功:', profileRes.userInfo);
+        console.log('✅ [WechatLogin] 获取用户信息成功:', profileRes.userInfo);
 
-        // 构造登录数据
-        const loginData = {
-          code: code,
-          nickName: profileRes.userInfo.nickName,
-          avatarUrl: profileRes.userInfo.avatarUrl,
-          // 兼容字段
-          nickname: profileRes.userInfo.nickName,
-          avatar: profileRes.userInfo.avatarUrl,
-        };
+        // 步骤2: 获取用户信息成功后，再调用 wx.login 获取 code
+        console.log('🔑 [WechatLogin] 调用 wx.login 获取 code...');
+        wx.login({
+          success: (loginRes) => {
+            if (loginRes.code) {
+              console.log('✅ [WechatLogin] 获取登录凭证成功, code:', loginRes.code);
+              
+              // 构造登录数据
+              const loginData = {
+                code: loginRes.code,
+                nickName: profileRes.userInfo.nickName,
+                avatarUrl: profileRes.userInfo.avatarUrl,
+                // 兼容字段
+                nickname: profileRes.userInfo.nickName,
+                avatar: profileRes.userInfo.avatarUrl,
+              };
 
-        // 步骤3: 发送登录请求到后端
-        sendLoginRequest(loginData)
-          .then(resolve)
-          .catch(reject);
+              // 步骤3: 发送登录请求到后端
+              sendLoginRequest(loginData)
+                .then(resolve)
+                .catch(reject);
+            } else {
+              console.error('❌ [WechatLogin] wx.login 失败:', loginRes.errMsg);
+              reject(new Error('获取登录凭证失败'));
+            }
+          },
+          fail: (err) => {
+            console.error('❌ [WechatLogin] wx.login 调用失败:', err);
+            reject(err);
+          }
+        });
       },
       fail: (err) => {
-        console.error('❌ 获取用户信息失败:', err);
+        console.error('❌ [WechatLogin] 获取用户信息失败:', err);
         // 用户拒绝授权或其他错误
-        if (err.errMsg.includes('cancel')) {
+        if (err.errMsg && err.errMsg.includes('cancel')) {
           reject(new Error('用户取消授权'));
+        } else if (err.errMsg && err.errMsg.includes('user TAP gesture')) {
+          reject(new Error('请在按钮点击事件中调用登录'));
         } else {
           reject(new Error('获取用户信息失败'));
         }
@@ -82,6 +70,7 @@ function getUserProfile(code) {
   });
 }
 
+
 /**
  * 发送登录请求到后端（通过云函数代理）
  * @param {Object} loginData - 登录数据
@@ -89,7 +78,12 @@ function getUserProfile(code) {
  */
 function sendLoginRequest(loginData) {
   return new Promise((resolve, reject) => {
-    console.log('📡 发送登录请求到后端...');
+    console.log('📡 [WechatLogin] 发送登录请求到后端...');
+    console.log('📦 [WechatLogin] 登录数据:', {
+      code: loginData.code ? 'exists' : 'missing',
+      nickName: loginData.nickName,
+      hasAvatar: !!loginData.avatarUrl
+    });
 
     // 通过云函数代理请求后端API
     wx.cloud.callFunction({
@@ -103,13 +97,13 @@ function sendLoginRequest(loginData) {
         }
       },
       success: (res) => {
-        console.log('📥 后端响应:', res);
+        console.log('📥 [WechatLogin] 后端响应:', res);
 
         if (res.result && res.result.statusCode === 200) {
           const responseData = res.result.data;
 
           if (responseData.code === 200 && responseData.data) {
-            console.log('✅ 登录成功!');
+            console.log('✅ [WechatLogin] 登录成功!');
             
             const { access_token, user } = responseData.data;
 
@@ -117,22 +111,24 @@ function sendLoginRequest(loginData) {
             wx.setStorageSync('access_token', access_token);
             wx.setStorageSync('user_info', user);
 
+            console.log('💾 [WechatLogin] 已保存 token 和用户信息到本地');
+
             resolve({
               success: true,
               token: access_token,
               userInfo: user
             });
           } else {
-            console.error('❌ 登录失败:', responseData.message);
+            console.error('❌ [WechatLogin] 登录失败:', responseData.message);
             reject(new Error(responseData.message || '登录失败'));
           }
         } else {
-          console.error('❌ 请求失败:', res.result);
+          console.error('❌ [WechatLogin] 请求失败:', res.result);
           reject(new Error('登录请求失败'));
         }
       },
       fail: (err) => {
-        console.error('❌ 云函数调用失败:', err);
+        console.error('❌ [WechatLogin] 云函数调用失败:', err);
         reject(err);
       }
     });
