@@ -85,17 +85,11 @@ function sendLoginRequest(loginData) {
       hasAvatar: !!loginData.avatarUrl
     });
 
-    // 通过云函数代理请求后端API
+    // 使用专门的微信登录云函数（避免IP白名单问题）
     wx.cloud.callFunction({
-      name: 'api-proxy',
-      data: {
-        method: 'POST',
-        path: '/api/v1/auth/wx-login',
-        data: loginData,  // 使用 data 参数（与云函数保持一致）
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      },
+      name: 'wechat-login',  // 使用专门的登录云函数
+      data: loginData,       // 直接传递登录数据
+
       success: (res) => {
         console.log('📥 [WechatLogin] 云函数响应:', res);
 

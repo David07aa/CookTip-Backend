@@ -1,0 +1,11 @@
+{
+  "name": "wechat-login",
+  "version": "1.0.0",
+  "description": "微信小程序登录云函数 - 专门处理微信登录避免IP白名单问题",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "^3.0.0",
+    "axios": "^1.6.0"
+  }
+}
+
