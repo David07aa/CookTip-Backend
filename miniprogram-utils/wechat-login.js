@@ -91,7 +91,7 @@ function sendLoginRequest(loginData) {
       data: {
         method: 'POST',
         path: '/api/v1/auth/wx-login',
-        body: loginData,
+        data: loginData,  // 使用 data 参数（与云函数保持一致）
         headers: {
           'Content-Type': 'application/json'
         }
