@@ -1,6 +1,8 @@
+# 备用Dockerfile - 使用标准node镜像（更稳定但体积更大）
+# 如果 alpine 镜像持续失败，使用此文件
+
 # 多阶段构建 - 构建阶段
-# 使用具体版本号，避免腾讯云镜像缓存问题
-FROM node:18.20.5-alpine3.20 AS builder
+FROM node:18-slim AS builder
 
 WORKDIR /app
 
@@ -17,7 +19,7 @@ COPY . .
 RUN npm run build
 
 # 生产阶段
-FROM node:18.20.5-alpine3.20
+FROM node:18-slim
 
 WORKDIR /app
 
@@ -27,9 +29,6 @@ RUN npm ci --only=production && npm cache clean --force
 
 # 从构建阶段复制编译后的文件
 COPY --from=builder /app/dist ./dist
-
-# 注意：图片已迁移到对象存储，无需复制 uploads 目录
-# COPY --from=builder /app/uploads ./uploads
 
 # 暴露端口
 EXPOSE 3000
