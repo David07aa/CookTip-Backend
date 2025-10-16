@@ -1,0 +1,47 @@
+<!--
+  微信原生小程序 - 登录页面 WXML 示例
+  配合 wechat-login-page-example.js 使用
+-->
+
+<view class="container">
+  <!-- 未登录状态 -->
+  <view wx:if="{{!isLogin}}" class="login-container">
+    <view class="logo">
+      <image src="/images/logo.png" mode="aspectFit"></image>
+    </view>
+    
+    <view class="app-name">美食菜谱</view>
+    <view class="app-desc">发现美食，分享快乐</view>
+    
+    <!-- 微信登录按钮 -->
+    <button 
+      class="login-btn"
+      type="primary"
+      bindtap="handleWechatLogin"
+      disabled="{{isLoading}}"
+    >
+      <image src="/images/wechat-icon.png" class="wechat-icon"></image>
+      {{isLoading ? '登录中...' : '微信一键登录'}}
+    </button>
+    
+    <view class="login-tips">
+      <text>登录即表示同意</text>
+      <text class="link">《用户协议》</text>
+      <text>和</text>
+      <text class="link">《隐私政策》</text>
+    </view>
+  </view>
+
+  <!-- 已登录状态 -->
+  <view wx:else class="user-info-container">
+    <view class="avatar">
+      <image src="{{userInfo.avatar}}" mode="aspectFill"></image>
+    </view>
+    
+    <view class="nickname">{{userInfo.nickname}}</view>
+    <view class="user-id">ID: {{userInfo.id}}</view>
+    
+    <button class="logout-btn" bindtap="handleLogout">退出登录</button>
+  </view>
+</view>
+

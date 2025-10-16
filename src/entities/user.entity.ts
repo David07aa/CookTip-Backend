@@ -27,6 +27,9 @@ export class User {
   avatar: string;
 
   @Column({ type: 'varchar', length: 200, nullable: true })
+  session_key: string;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
   bio: string;
 
   @Column({ type: 'int', default: 0 })

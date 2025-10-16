@@ -36,15 +36,19 @@ export class AuthService {
       // 新用户，创建账户
       user = this.userRepository.create({
         openid,
+        session_key, // 保存 session_key，用于后续解密敏感数据
         nickname: userNickname || '美食爱好者',
         avatar: userAvatar || '',
       });
       await this.userRepository.save(user);
+      console.log('✅ 新用户注册成功, user_id:', user.id);
     } else {
       // 老用户，更新信息
       if (userNickname) user.nickname = userNickname;
       if (userAvatar) user.avatar = userAvatar;
+      user.session_key = session_key; // 更新 session_key
       await this.userRepository.save(user);
+      console.log('✅ 老用户登录成功, user_id:', user.id);
     }
 
     // 3. 生成 JWT Token
