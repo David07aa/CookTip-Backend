@@ -7,6 +7,7 @@ import axios from 'axios';
 import * as https from 'https';
 import { User } from '../../entities/user.entity';
 import { WechatLoginDto } from './dto/wechat-login.dto';
+import { CloudLoginDto } from './dto/cloud-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -53,6 +54,59 @@ export class AuthService {
     }
 
     // 3. 生成 JWT Token
+    const access_token = this.generateToken(user);
+
+    return {
+      access_token,
+      token_type: 'Bearer',
+      expires_in: 604800, // 7天
+      user: {
+        id: user.id,
+        openid: user.openid,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        created_at: user.created_at,
+      },
+    };
+  }
+
+  /**
+   * 云函数登录（openid已由云函数获取，无需code2session）
+   */
+  async cloudLogin(cloudLoginDto: CloudLoginDto) {
+    const { openid, unionid, nickname, avatar } = cloudLoginDto;
+
+    console.log('🔐 [CloudLogin] 云函数登录开始');
+    console.log('  - OpenID 长度:', openid?.length);
+    console.log('  - UnionID 存在:', !!unionid);
+    console.log('  - Nickname:', nickname || '未提供');
+
+    if (!openid) {
+      console.error('❌ [CloudLogin] OpenID 缺失');
+      throw new UnauthorizedException('OpenID 不能为空');
+    }
+
+    // 查找或创建用户
+    let user = await this.userRepository.findOne({ where: { openid } });
+
+    if (!user) {
+      // 新用户，创建账户
+      user = this.userRepository.create({
+        openid,
+        nickname: nickname || '美食爱好者',
+        avatar: avatar || '',
+      });
+      await this.userRepository.save(user);
+      console.log('✅ [CloudLogin] 新用户注册成功, user_id:', user.id);
+    } else {
+      // 老用户，更新信息
+      if (nickname) user.nickname = nickname;
+      if (avatar) user.avatar = avatar;
+      await this.userRepository.save(user);
+      console.log('✅ [CloudLogin] 老用户登录成功, user_id:', user.id);
+    }
+
+    // 生成 JWT Token
     const access_token = this.generateToken(user);
 
     return {

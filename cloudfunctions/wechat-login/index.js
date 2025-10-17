@@ -8,7 +8,7 @@ cloud.init({
 
 /**
  * 微信小程序登录云函数
- * 直接调用微信code2session接口，避免IP白名单问题
+ * 直接在云函数中调用微信API，避免IP白名单问题
  */
 exports.main = async (event, context) => {
   const { code, nickname, avatar, nickName, avatarUrl } = event
@@ -20,7 +20,7 @@ exports.main = async (event, context) => {
   })
 
   try {
-    // 1. 调用微信cloud.getWXContext()获取openid（推荐方式）
+    // 1. 直接使用云函数的能力获取openid（这样不走云托管后端，避免IP白名单问题）
     const wxContext = cloud.getWXContext()
     console.log('✅ [WechatLogin] 获取微信上下文成功:', {
       openid: wxContext.OPENID ? wxContext.OPENID.substring(0, 8) + '***' : 'undefined',
@@ -28,27 +28,28 @@ exports.main = async (event, context) => {
       unionid: wxContext.UNIONID
     })
 
-    // 2. 准备用户数据
+    // 2. 准备用户数据（直接传openid给后端，不需要code）
     const userNickname = nickName || nickname || '美食爱好者'
     const userAvatar = avatarUrl || avatar || ''
     
     const loginData = {
-      code: code,
+      openid: wxContext.OPENID,    // 直接传openid
+      unionid: wxContext.UNIONID,  // 如果有unionid也传
       nickname: userNickname,
       avatar: userAvatar
     }
 
-    console.log('📡 [WechatLogin] 转发登录请求到后端...')
-    console.log('   登录数据:', loginData)
+    console.log('📡 [WechatLogin] 发送登录数据到后端...')
+    console.log('   包含openid:', !!loginData.openid)
 
-    // 3. 调用云托管后端API
+    // 3. 调用云托管后端API（使用新的登录接口，不需要code2session）
     const axios = require('axios')
     const API_URL = 'http://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com' // 云托管内网地址
     
-    const response = await axios.post(`${API_URL}/api/v1/auth/wx-login`, loginData, {
+    const response = await axios.post(`${API_URL}/api/v1/auth/cloud-login`, loginData, {
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'WechatLogin-CloudFunction/1.0'
+        'User-Agent': 'WechatLogin-CloudFunction/2.0'
       },
       timeout: 10000 // 10秒超时
     })

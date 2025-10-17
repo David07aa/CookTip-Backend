@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { WechatLoginDto } from './dto/wechat-login.dto';
+import { CloudLoginDto } from './dto/cloud-login.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -30,6 +31,17 @@ export class AuthController {
   @ApiResponse({ status: 401, description: '登录失败' })
   async wxLogin(@Body() wechatLoginDto: WechatLoginDto) {
     return this.authService.wechatLogin(wechatLoginDto);
+  }
+
+  // 云函数登录（openid已由云函数获取）
+  @Public()
+  @Post('cloud-login')
+  @HttpCode(200)
+  @ApiOperation({ summary: '云函数登录（避免IP白名单问题）' })
+  @ApiResponse({ status: 200, description: '登录成功' })
+  @ApiResponse({ status: 401, description: '登录失败' })
+  async cloudLogin(@Body() cloudLoginDto: CloudLoginDto) {
+    return this.authService.cloudLogin(cloudLoginDto);
   }
 
   @Post('refresh')

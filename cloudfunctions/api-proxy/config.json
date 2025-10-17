@@ -2,7 +2,7 @@
   "permissions": {
     "openapi": []
   },
-  "env": "",
+  "env": "cloud1-1gvl7us90dd31c43",
   "timeout": 20,
   "memorySize": 256
 }
