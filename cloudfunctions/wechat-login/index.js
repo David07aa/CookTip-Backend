@@ -7,8 +7,13 @@ cloud.init({
 })
 
 /**
- * 微信小程序登录云函数
- * 直接在云函数中调用微信API，避免IP白名单问题
+ * 微信小程序登录云函数（转发模式 + 身份注入）
+ * 
+ * 工作原理：
+ * 1. 云函数获取openid（作为备用方案）
+ * 2. 转发请求到云托管后端
+ * 3. 云托管自动注入身份信息到请求头（x-wx-openid）
+ * 4. 后端优先使用请求头的openid，如果没有则使用body中的openid
  */
 exports.main = async (event, context) => {
   const { code, nickname, avatar, nickName, avatarUrl } = event
@@ -20,44 +25,44 @@ exports.main = async (event, context) => {
   })
 
   try {
-    // 1. 直接使用云函数的能力获取openid（这样不走云托管后端，避免IP白名单问题）
+    // 1. 获取微信上下文（作为备用方案）
     const wxContext = cloud.getWXContext()
-    console.log('✅ [WechatLogin] 获取微信上下文成功:', {
-      openid: wxContext.OPENID ? wxContext.OPENID.substring(0, 8) + '***' : 'undefined',
-      appid: wxContext.APPID,
-      unionid: wxContext.UNIONID
+    console.log('✅ [WechatLogin] 获取微信上下文:', {
+      hasOpenid: !!wxContext.OPENID,
+      hasAppid: !!wxContext.APPID,
+      hasUnionid: !!wxContext.UNIONID
     })
 
-    // 2. 准备用户数据（直接传openid给后端，不需要code）
+    // 2. 准备用户数据
     const userNickname = nickName || nickname || '美食爱好者'
     const userAvatar = avatarUrl || avatar || ''
     
     const loginData = {
-      openid: wxContext.OPENID,    // 直接传openid
-      unionid: wxContext.UNIONID,  // 如果有unionid也传
+      openid: wxContext.OPENID,    // 作为备用，如果云托管没注入则使用这个
+      unionid: wxContext.UNIONID,  
       nickname: userNickname,
       avatar: userAvatar
     }
 
-    console.log('📡 [WechatLogin] 发送登录数据到后端...')
-    console.log('   包含openid:', !!loginData.openid)
+    console.log('📡 [WechatLogin] 转发请求到云托管后端...')
+    console.log('   - 备用openid:', wxContext.OPENID ? 'exists' : 'missing')
+    console.log('   - 云托管将自动注入身份信息到请求头')
 
-    // 3. 调用云托管后端API（使用新的登录接口，不需要code2session）
+    // 3. 转发到云托管后端（云托管会自动注入x-wx-openid等请求头）
     const axios = require('axios')
-    const API_URL = 'http://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com' // 云托管内网地址
+    const API_URL = 'http://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com'
     
     const response = await axios.post(`${API_URL}/api/v1/auth/cloud-login`, loginData, {
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'WechatLogin-CloudFunction/2.0'
+        'User-Agent': 'WechatLogin-CloudFunction/3.0'
       },
-      timeout: 10000 // 10秒超时
+      timeout: 10000
     })
 
     console.log('✅ [WechatLogin] 后端响应成功:', {
       status: response.status,
-      hasToken: !!response.data?.data?.access_token,
-      hasUser: !!response.data?.data?.user
+      hasToken: !!response.data?.data?.access_token
     })
 
     // 4. 返回登录结果

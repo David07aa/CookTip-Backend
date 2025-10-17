@@ -71,19 +71,27 @@ export class AuthService {
   }
 
   /**
-   * 云函数登录（openid已由云函数获取，无需code2session）
+   * 云函数登录（使用云托管身份注入功能）
+   * openid从请求头x-wx-openid获取，或从body中获取（云函数转发的情况）
    */
-  async cloudLogin(cloudLoginDto: CloudLoginDto) {
-    const { openid, unionid, nickname, avatar } = cloudLoginDto;
+  async cloudLogin(cloudLoginDto: CloudLoginDto, injectedOpenid?: string, injectedUnionid?: string) {
+    // 优先使用云托管注入的openid，其次使用云函数传递的openid
+    const openid = injectedOpenid || cloudLoginDto.openid;
+    const unionid = injectedUnionid || cloudLoginDto.unionid;
+    const { nickname, avatar } = cloudLoginDto;
 
-    console.log('🔐 [CloudLogin] 云函数登录开始');
+    console.log('🔐 [CloudLogin] 云托管身份注入登录开始');
+    console.log('  - OpenID 来源:', injectedOpenid ? '云托管注入' : '云函数传递');
     console.log('  - OpenID 长度:', openid?.length);
     console.log('  - UnionID 存在:', !!unionid);
     console.log('  - Nickname:', nickname || '未提供');
 
     if (!openid) {
       console.error('❌ [CloudLogin] OpenID 缺失');
-      throw new UnauthorizedException('OpenID 不能为空');
+      console.error('   请检查：');
+      console.error('   1. 云托管是否开启"身份注入"功能');
+      console.error('   2. 云函数是否正确获取openid');
+      throw new UnauthorizedException('OpenID 不能为空，请检查云托管配置');
     }
 
     // 查找或创建用户
