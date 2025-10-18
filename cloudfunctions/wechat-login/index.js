@@ -48,16 +48,24 @@ exports.main = async (event, context) => {
     console.log('   - 备用openid:', wxContext.OPENID ? 'exists' : 'missing')
     console.log('   - 云托管将自动注入身份信息到请求头')
 
-    // 3. 转发到云托管后端（云托管会自动注入x-wx-openid等请求头）
+    // 3. 转发到云托管后端
     const axios = require('axios')
-    const API_URL = 'http://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com'
+    
+    // 使用公网地址（云函数无法访问内网地址）
+    const API_URL = 'https://yjsp-ytg-191595-4-1367462091.sh.run.tcloudbase.com'
+    
+    console.log('📡 [WechatLogin] 准备请求后端:', {
+      url: `${API_URL}/api/v1/auth/cloud-login`,
+      hasOpenid: !!loginData.openid,
+      hasNickname: !!loginData.nickname
+    })
     
     const response = await axios.post(`${API_URL}/api/v1/auth/cloud-login`, loginData, {
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'WechatLogin-CloudFunction/3.0'
+        'User-Agent': 'WechatLogin-CloudFunction/4.0'
       },
-      timeout: 10000
+      timeout: 15000  // 增加超时时间到15秒
     })
 
     console.log('✅ [WechatLogin] 后端响应成功:', {
