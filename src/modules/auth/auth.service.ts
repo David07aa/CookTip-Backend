@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { BindAccountDto } from './dto/bind-account.dto';
 import { CryptoService } from './crypto.service';
+import { WechatAvatarUtil } from '../../utils/wechat-avatar.util';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +25,10 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private cryptoService: CryptoService,
-  ) {}
+  ) {
+    // 初始化微信头像处理工具
+    WechatAvatarUtil.init(this.configService);
+  }
 
   /**
    * 微信登录
@@ -105,21 +109,49 @@ export class AuthService {
     // 查找或创建用户
     let user = await this.userRepository.findOne({ where: { openid } });
 
+    // 处理微信头像：如果是微信URL，下载并上传到COS
+    let processedAvatar = avatar;
+    if (avatar) {
+      try {
+        // 如果是新用户，先创建临时用户以获取ID，然后更新头像
+        if (!user) {
+          user = this.userRepository.create({
+            openid,
+            nickname: nickname || '美食爱好者',
+            avatar: '', // 先设置空，稍后更新
+          });
+          user = await this.userRepository.save(user);
+          console.log('✅ [CloudLogin] 新用户创建, user_id:', user.id);
+        }
+
+        // 处理头像
+        processedAvatar = await WechatAvatarUtil.processWechatAvatar(
+          avatar,
+          user.id,
+          user.nickname || '用户'
+        );
+        console.log('✅ [CloudLogin] 头像处理完成:', processedAvatar);
+      } catch (error) {
+        console.error('⚠️ [CloudLogin] 头像处理失败，使用原URL:', error.message);
+        processedAvatar = avatar;
+      }
+    }
+
     if (!user) {
-      // 新用户，创建账户
+      // 新用户（没有头像的情况）
       user = this.userRepository.create({
         openid,
         nickname: nickname || '美食爱好者',
-        avatar: avatar || '',
+        avatar: processedAvatar || '',
       });
       await this.userRepository.save(user);
       console.log('✅ [CloudLogin] 新用户注册成功, user_id:', user.id);
     } else {
-      // 老用户，更新信息
+      // 更新用户信息
       if (nickname) user.nickname = nickname;
-      if (avatar) user.avatar = avatar;
+      if (processedAvatar) user.avatar = processedAvatar;
       await this.userRepository.save(user);
-      console.log('✅ [CloudLogin] 老用户登录成功, user_id:', user.id);
+      console.log('✅ [CloudLogin] 用户信息更新成功, user_id:', user.id);
     }
 
     // 生成 JWT Token
