@@ -16,8 +16,8 @@
 
 ```bash
 # COS配置（对象存储）
-COS_SECRET_ID=你的SecretId
-COS_SECRET_KEY=你的SecretKey  
+COS_SECRET_ID=你的SecretId（从腾讯云获取）
+COS_SECRET_KEY=你的SecretKey（从腾讯云获取）
 COS_BUCKET=yjsp-1367462091
 COS_REGION=ap-nanjing
 ```
