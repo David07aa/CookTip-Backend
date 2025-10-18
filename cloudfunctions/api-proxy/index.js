@@ -6,8 +6,8 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-// 云托管内网地址（仅云内部可访问）
-const API_INTERNAL_URL = 'http://rnvvjhwh.yjsp-ytg.0er4gbxk.1tj8lj27.com'
+// 云托管公网地址（云函数使用公网访问）
+const API_URL = 'https://yjsp-ytg-191595-4-1367462091.sh.run.tcloudbase.com'
 
 /**
  * 云函数 API 代理
@@ -26,13 +26,13 @@ exports.main = async (event, context) => {
     method = 'GET',
     path = '/',
     data = {},
-    body = {},  // 支持 body 参数
+    body,  // 支持 body 参数
     headers = {},
     query = {}
   } = event
   
   // 兼容 body 和 data 参数，优先使用 body
-  const requestData = Object.keys(body).length > 0 ? body : data
+  const requestData = (body && Object.keys(body).length > 0) ? body : data
 
   try {
     // 引入 axios（云函数环境中需要先安装依赖）
@@ -45,7 +45,7 @@ exports.main = async (event, context) => {
     }
 
     // 构建完整的请求 URL
-    let fullUrl = `${API_INTERNAL_URL}${apiPath}`
+    let fullUrl = `${API_URL}${apiPath}`
     
     // 如果是 GET 请求且有 query 参数，添加到 URL
     if (method.toUpperCase() === 'GET' && Object.keys(query).length > 0) {
