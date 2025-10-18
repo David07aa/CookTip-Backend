@@ -38,8 +38,14 @@ exports.main = async (event, context) => {
     // 引入 axios（云函数环境中需要先安装依赖）
     const axios = require('axios')
 
+    // 自动添加 API 前缀（如果路径不是以 /api/v1 开头）
+    let apiPath = path
+    if (!path.startsWith('/api/v1') && !path.startsWith('/health')) {
+      apiPath = `/api/v1${path}`
+    }
+
     // 构建完整的请求 URL
-    let fullUrl = `${API_INTERNAL_URL}${path}`
+    let fullUrl = `${API_INTERNAL_URL}${apiPath}`
     
     // 如果是 GET 请求且有 query 参数，添加到 URL
     if (method.toUpperCase() === 'GET' && Object.keys(query).length > 0) {

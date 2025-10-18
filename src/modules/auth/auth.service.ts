@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -6,16 +6,24 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as https from 'https';
 import { User } from '../../entities/user.entity';
+import { UserCredential } from '../../entities/user-credential.entity';
 import { WechatLoginDto } from './dto/wechat-login.dto';
 import { CloudLoginDto } from './dto/cloud-login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { BindAccountDto } from './dto/bind-account.dto';
+import { CryptoService } from './crypto.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(UserCredential)
+    private credentialRepository: Repository<UserCredential>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private cryptoService: CryptoService,
   ) {}
 
   /**
@@ -252,6 +260,296 @@ export class AuthService {
     };
 
     return this.jwtService.sign(payload);
+  }
+
+  /**
+   * 用户注册（用户名密码方式）
+   */
+  async register(registerDto: RegisterDto) {
+    const { username, password, email, phone, nickname } = registerDto;
+
+    // 1. 检查用户名是否已存在
+    const existingCredential = await this.credentialRepository.findOne({
+      where: { type: 'username', account: username },
+    });
+
+    if (existingCredential) {
+      throw new ConflictException('用户名已存在');
+    }
+
+    // 2. 检查邮箱是否已存在（如果提供）
+    if (email) {
+      const existingEmail = await this.credentialRepository.findOne({
+        where: { type: 'email', account: email },
+      });
+      if (existingEmail) {
+        throw new ConflictException('邮箱已被注册');
+      }
+    }
+
+    // 3. 检查手机号是否已存在（如果提供）
+    if (phone) {
+      const existingPhone = await this.credentialRepository.findOne({
+        where: { type: 'phone', account: phone },
+      });
+      if (existingPhone) {
+        throw new ConflictException('手机号已被注册');
+      }
+    }
+
+    // 4. 加密密码
+    const hashedPassword = await this.cryptoService.hashPassword(password);
+
+    // 5. 创建用户
+    const user = this.userRepository.create({
+      openid: this.cryptoService.generateUniqueId(),
+      nickname: nickname || username,
+      username,
+      email,
+      phone,
+      password_hash: hashedPassword,
+      is_verified: false, // 新注册用户未验证
+    });
+
+    await this.userRepository.save(user);
+
+    // 6. 创建用户凭证记录
+    const credentials: UserCredential[] = [];
+
+    // 用户名凭证（主账号）
+    credentials.push(
+      this.credentialRepository.create({
+        user_id: user.id,
+        type: 'username',
+        account: username,
+        is_main: true,
+        is_verified: true,
+      }),
+    );
+
+    // 邮箱凭证
+    if (email) {
+      credentials.push(
+        this.credentialRepository.create({
+          user_id: user.id,
+          type: 'email',
+          account: email,
+          is_main: false,
+          is_verified: false, // 需要验证
+        }),
+      );
+    }
+
+    // 手机号凭证
+    if (phone) {
+      credentials.push(
+        this.credentialRepository.create({
+          user_id: user.id,
+          type: 'phone',
+          account: phone,
+          is_main: false,
+          is_verified: false, // 需要验证
+        }),
+      );
+    }
+
+    await this.credentialRepository.save(credentials);
+
+    // 7. 生成 Token
+    const access_token = this.generateToken(user);
+
+    return {
+      access_token,
+      token_type: 'Bearer',
+      expires_in: 604800, // 7天
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        email: user.email,
+        phone: user.phone,
+        is_verified: user.is_verified,
+        created_at: user.created_at,
+      },
+    };
+  }
+
+  /**
+   * 通用登录（用户名/邮箱/手机号）
+   */
+  async login(loginDto: LoginDto) {
+    const { account, password } = loginDto;
+
+    // 1. 查找账号对应的凭证
+    const credential = await this.credentialRepository.findOne({
+      where: [
+        { type: 'username', account },
+        { type: 'email', account },
+        { type: 'phone', account },
+      ],
+      relations: ['user'],
+    });
+
+    if (!credential) {
+      throw new UnauthorizedException('账号不存在');
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: credential.user_id },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    // 2. 验证密码
+    if (!user.password_hash) {
+      throw new UnauthorizedException('该账号未设置密码，请使用其他方式登录');
+    }
+
+    const isPasswordValid = await this.cryptoService.validatePassword(
+      password,
+      user.password_hash,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('密码错误');
+    }
+
+    // 3. 生成 Token
+    const access_token = this.generateToken(user);
+
+    return {
+      access_token,
+      token_type: 'Bearer',
+      expires_in: 604800, // 7天
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        is_verified: user.is_verified,
+        created_at: user.created_at,
+      },
+    };
+  }
+
+  /**
+   * 绑定账号
+   */
+  async bindAccount(userId: number, bindAccountDto: BindAccountDto) {
+    const { type, account } = bindAccountDto;
+
+    // 1. 检查账号是否已被其他用户绑定
+    const existing = await this.credentialRepository.findOne({
+      where: { type, account },
+    });
+
+    if (existing) {
+      if (existing.user_id === userId) {
+        throw new BadRequestException('该账号已绑定到当前用户');
+      }
+      throw new ConflictException('该账号已被其他用户绑定');
+    }
+
+    // 2. 更新用户表对应字段
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    if (type === 'username') user.username = account;
+    if (type === 'email') user.email = account;
+    if (type === 'phone') user.phone = account;
+
+    await this.userRepository.save(user);
+
+    // 3. 创建凭证记录
+    const credential = this.credentialRepository.create({
+      user_id: userId,
+      type,
+      account,
+      is_main: false,
+      is_verified: false, // 需要验证
+    });
+
+    await this.credentialRepository.save(credential);
+
+    return {
+      message: '绑定成功',
+      credential: {
+        id: credential.id,
+        type: credential.type,
+        account: credential.account,
+        is_verified: credential.is_verified,
+      },
+    };
+  }
+
+  /**
+   * 解绑账号
+   */
+  async unbindAccount(userId: number, credentialId: number) {
+    const credential = await this.credentialRepository.findOne({
+      where: { id: credentialId, user_id: userId },
+    });
+
+    if (!credential) {
+      throw new BadRequestException('凭证不存在');
+    }
+
+    if (credential.is_main) {
+      throw new BadRequestException('主账号不能解绑');
+    }
+
+    await this.credentialRepository.remove(credential);
+
+    return {
+      message: '解绑成功',
+    };
+  }
+
+  /**
+   * 获取用户的所有凭证
+   */
+  async getUserCredentials(userId: number) {
+    const credentials = await this.credentialRepository.find({
+      where: { user_id: userId },
+      order: { is_main: 'DESC', created_at: 'ASC' },
+    });
+
+    return {
+      credentials: credentials.map((c) => ({
+        id: c.id,
+        type: c.type,
+        account: c.account,
+        is_main: c.is_main,
+        is_verified: c.is_verified,
+        created_at: c.created_at,
+      })),
+    };
+  }
+
+  /**
+   * 设置密码（为已有账号添加密码登录）
+   */
+  async setPassword(userId: number, password: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    const hashedPassword = await this.cryptoService.hashPassword(password);
+    user.password_hash = hashedPassword;
+
+    await this.userRepository.save(user);
+
+    return {
+      message: '密码设置成功',
+    };
   }
 }
 
