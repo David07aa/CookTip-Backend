@@ -79,8 +79,31 @@ export class StatsService {
         created_at: recipe.created_at,
       }));
 
+    // Banner广告图（使用COS存储）
+    const cosBaseUrl = 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com';
+    const banners = [
+      {
+        id: 1,
+        image: `${cosBaseUrl}/laoxiangji/LXJLOGO/banner1.jpg`,
+        link: '/pages/index/index',
+        title: '精选美食推荐',
+      },
+      {
+        id: 2,
+        image: `${cosBaseUrl}/laoxiangji/LXJLOGO/banner2.jpg`,
+        link: '/pages/index/index',
+        title: '每日新菜谱',
+      },
+      {
+        id: 3,
+        image: `${cosBaseUrl}/laoxiangji/LXJLOGO/banner3.jpg`,
+        link: '/pages/index/index',
+        title: '热门美食',
+      },
+    ];
+
     return {
-      banners: [], // ✅ 返回空数组，避免示例URL导致404错误
+      banners,
       categories: categories.map((cat) => ({
         id: cat.id,
         name: cat.name,
