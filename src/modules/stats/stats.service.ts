@@ -23,85 +23,113 @@ export class StatsService {
    * 获取首页推荐数据
    */
   async getHomeFeed(page: number = 1, limit: number = 10) {
-    const skip = (page - 1) * limit;
+    try {
+      const skip = (page - 1) * limit;
 
-    // 获取分类
-    const categories = await this.categoryRepository.find({
-      order: { sort_order: 'ASC' },
-      take: 10,
-    });
+      // 获取分类
+      const categories = await this.categoryRepository.find({
+        order: { sort_order: 'ASC' },
+        take: 10,
+      });
 
-    // 获取热门食谱（按点赞数）
-    const hotRecipes = await this.recipeRepository
-      .createQueryBuilder('recipe')
-      .leftJoinAndSelect('recipe.user', 'user')
-      .where('recipe.status = :status', { status: 'published' })
-      .orderBy('recipe.likes', 'DESC')
-      .take(10)
-      .getMany();
+      // 获取热门食谱（按点赞数）
+      const hotRecipes = await this.recipeRepository
+        .createQueryBuilder('recipe')
+        .leftJoinAndSelect('recipe.user', 'user')
+        .where('recipe.status = :status', { status: 'published' })
+        .orderBy('recipe.likes', 'DESC')
+        .take(10)
+        .getMany();
 
-    // 获取最新食谱
-    const latestRecipes = await this.recipeRepository
-      .createQueryBuilder('recipe')
-      .leftJoinAndSelect('recipe.user', 'user')
-      .where('recipe.status = :status', { status: 'published' })
-      .orderBy('recipe.created_at', 'DESC')
-      .skip(skip)
-      .take(limit)
-      .getMany();
+      // 获取最新食谱
+      const latestRecipes = await this.recipeRepository
+        .createQueryBuilder('recipe')
+        .leftJoinAndSelect('recipe.user', 'user')
+        .where('recipe.status = :status', { status: 'published' })
+        .orderBy('recipe.created_at', 'DESC')
+        .skip(skip)
+        .take(limit)
+        .getMany();
 
-    // 推荐食谱（简化实现：按浏览量）
-    const recommendedRecipes = await this.recipeRepository
-      .createQueryBuilder('recipe')
-      .leftJoinAndSelect('recipe.user', 'user')
-      .where('recipe.status = :status', { status: 'published' })
-      .orderBy('recipe.views', 'DESC')
-      .take(10)
-      .getMany();
+      // 推荐食谱（简化实现：按浏览量）
+      const recommendedRecipes = await this.recipeRepository
+        .createQueryBuilder('recipe')
+        .leftJoinAndSelect('recipe.user', 'user')
+        .where('recipe.status = :status', { status: 'published' })
+        .orderBy('recipe.views', 'DESC')
+        .take(10)
+        .getMany();
 
-    const formatRecipes = (recipes: Recipe[]) =>
-      recipes.map((recipe) => ({
-        id: recipe.id,
-        title: recipe.title,
-        cover_image: recipe.cover_image,
-        description: recipe.description,
-        difficulty: recipe.difficulty,
-        cook_time: recipe.cook_time,
-        tags: recipe.tags,
-        likes: recipe.likes,
-        favorites: recipe.favorites,
-        views: recipe.views,
-        user: {
-          id: recipe.user.id,
-          nickname: recipe.user.nickname,
-          avatar: recipe.user.avatar,
+      // 格式化食谱数据（添加空值检查）
+      const defaultUser = {
+        id: 0,
+        nickname: '美食达人',
+        avatar: 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com/laoxiangji/userImage/Defaultavatar.png',
+      };
+
+      const formatRecipes = (recipes: Recipe[]) =>
+        recipes.map((recipe) => ({
+          id: recipe.id,
+          title: recipe.title,
+          cover_image: recipe.cover_image,
+          description: recipe.description,
+          difficulty: recipe.difficulty,
+          cook_time: recipe.cook_time,
+          tags: recipe.tags,
+          likes: recipe.likes,
+          favorites: recipe.favorites,
+          views: recipe.views,
+          user: recipe.user ? {
+            id: recipe.user.id,
+            nickname: recipe.user.nickname,
+            avatar: recipe.user.avatar,
+          } : defaultUser,
+          created_at: recipe.created_at,
+        }));
+
+      // Banner广告图（使用COS存储 - 单张大图）
+      const cosBaseUrl = 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com';
+      const banners = [
+        {
+          id: 1,
+          image: `${cosBaseUrl}/laoxiangji/LXJLOGO/LxjAd.jpg`,
+          link: '/pages/index/index',
+          title: '老乡鸡美食',
         },
-        created_at: recipe.created_at,
-      }));
+      ];
 
-    // Banner广告图（使用COS存储 - 单张大图）
-    const cosBaseUrl = 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com';
-    const banners = [
-      {
-        id: 1,
-        image: `${cosBaseUrl}/laoxiangji/LXJLOGO/LxjAd.jpg`,
-        link: '/pages/index/index',
-        title: '老乡鸡美食',
-      },
-    ];
-
-    return {
-      banners,
-      categories: categories.map((cat) => ({
-        id: cat.id,
-        name: cat.name,
-        icon: cat.icon,
-        recipe_count: cat.recipe_count,
-      })),
-      hot_recipes: formatRecipes(hotRecipes),
-      latest_recipes: formatRecipes(latestRecipes),
-      recommended_recipes: formatRecipes(recommendedRecipes),
-    };
+      return {
+        banners,
+        categories: categories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon,
+          recipe_count: cat.recipe_count,
+        })),
+        hot_recipes: formatRecipes(hotRecipes),
+        latest_recipes: formatRecipes(latestRecipes),
+        recommended_recipes: formatRecipes(recommendedRecipes),
+      };
+    } catch (error) {
+      console.error('[StatsService] getHomeFeed error:', error);
+      
+      // 返回默认数据，避免前端崩溃
+      const cosBaseUrl = 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com';
+      return {
+        banners: [
+          {
+            id: 1,
+            image: `${cosBaseUrl}/laoxiangji/LXJLOGO/LxjAd.jpg`,
+            link: '/pages/index/index',
+            title: '老乡鸡美食',
+          },
+        ],
+        categories: [],
+        hot_recipes: [],
+        latest_recipes: [],
+        recommended_recipes: [],
+      };
+    }
   }
 
   /**
