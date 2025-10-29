@@ -66,13 +66,14 @@ export class WechatAvatarUtil {
   ): Promise<string> {
     const putObject = promisify(this.cosClient.putObject.bind(this.cosClient));
 
-    // 文件名：user_{userId}_{nickname}_avatar.jpg
-    // 清理昵称中的特殊字符
+    // 文件名：以昵称命名
+    // 清理昵称中的特殊字符，保留中文、英文、数字
     const cleanNickname = nickname
       .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')
-      .substring(0, 20);
-    const fileName = `user_${userId}_${cleanNickname}_avatar.jpg`;
-    const key = `laoxiangji/userImage/${fileName}`;
+      .substring(0, 30) || `user_${userId}`;
+    
+    const fileName = `${cleanNickname}.jpg`;
+    const key = `laoxiangji/userImage/useravatar/${fileName}`;
 
     try {
       await putObject({

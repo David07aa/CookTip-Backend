@@ -137,12 +137,15 @@ export class AuthService {
       }
     }
 
+    // 默认头像URL
+    const defaultAvatar = 'https://yjsp-1367462091.cos.ap-nanjing.myqcloud.com/laoxiangji/userImage/Defaultavatar.png';
+
     if (!user) {
-      // 新用户（没有头像的情况）
+      // 新用户
       user = this.userRepository.create({
         openid,
         nickname: nickname || '美食爱好者',
-        avatar: processedAvatar || '',
+        avatar: processedAvatar || defaultAvatar,
       });
       await this.userRepository.save(user);
       console.log('✅ [CloudLogin] 新用户注册成功, user_id:', user.id);
