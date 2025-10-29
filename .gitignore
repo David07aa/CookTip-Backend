@@ -58,3 +58,7 @@ migrate-database.js
 insert-data.js
 verify-database.js
 
+# Work logs (private, not to be committed)
+工作日志-*.md
+work-log-*.md
+

@@ -80,13 +80,7 @@ export class StatsService {
       }));
 
     return {
-      banners: [
-        {
-          id: 1,
-          image: 'https://example.com/banner1.jpg',
-          link: '/recipes/1',
-        },
-      ],
+      banners: [], // ✅ 返回空数组，避免示例URL导致404错误
       categories: categories.map((cat) => ({
         id: cat.id,
         name: cat.name,
