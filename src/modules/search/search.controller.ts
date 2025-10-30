@@ -31,6 +31,27 @@ export class SearchController {
     }
   }
 
+  @Get('debug/all-recipes')
+  @ApiOperation({ summary: '调试：获取所有食谱（不分页）' })
+  @ApiResponse({ status: 200, description: '获取成功' })
+  async debugAllRecipes() {
+    try {
+      const result = await this.searchService.debugGetAllRecipes();
+      return {
+        code: 200,
+        message: 'success',
+        data: result,
+      };
+    } catch (error) {
+      console.error('[SearchController] Debug error:', error);
+      return {
+        code: 500,
+        message: error.message,
+        error: error.stack,
+      };
+    }
+  }
+
   @Get('recipes')
   @ApiOperation({ summary: '搜索食谱' })
   @ApiQuery({ name: 'keyword', type: String })

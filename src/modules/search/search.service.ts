@@ -11,6 +11,37 @@ export class SearchService {
   ) {}
 
   /**
+   * 调试：获取所有食谱（用于测试数据库连接和数据）
+   */
+  async debugGetAllRecipes() {
+    try {
+      const recipes = await this.recipeRepository.find({
+        take: 10,
+        relations: ['user'],
+        order: {
+          created_at: 'DESC',
+        },
+      });
+
+      console.log('[SearchService] Debug: Found recipes:', recipes.length);
+
+      return {
+        total: recipes.length,
+        recipes: recipes.map((r) => ({
+          id: r.id,
+          title: r.title,
+          status: r.status,
+          user: r.user ? { id: r.user.id, nickname: r.user.nickname } : null,
+          created_at: r.created_at,
+        })),
+      };
+    } catch (error) {
+      console.error('[SearchService] Debug error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 搜索食谱
    */
   async searchRecipes(
@@ -26,6 +57,20 @@ export class SearchService {
       const pageNum = Number(page) || 1;
       const limitNum = Number(limit) || 10;
       const skip = (pageNum - 1) * limitNum;
+
+      console.log('[SearchService] Building query:', {
+        keyword,
+        pageNum,
+        limitNum,
+        skip,
+        categoryId,
+        difficulty,
+        sort,
+      });
+
+      // 首先检查数据库中是否有任何食谱
+      const totalRecipes = await this.recipeRepository.count();
+      console.log('[SearchService] Total recipes in database:', totalRecipes);
 
       const queryBuilder = this.recipeRepository
         .createQueryBuilder('recipe')
@@ -44,14 +89,21 @@ export class SearchService {
           'user.id',
           'user.nickname',
           'user.avatar',
-        ])
-        .where('recipe.status = :status', { status: 'published' })
-        .andWhere(
+        ]);
+
+      // 如果有关键词，添加搜索条件
+      if (keyword && keyword.trim()) {
+        queryBuilder.where(
           '(recipe.title LIKE :keyword OR recipe.description LIKE :keyword)',
           { keyword: `%${keyword}%` },
-        )
-        .skip(skip)
-        .take(limitNum);
+        );
+      }
+
+      // 只搜索已发布的食谱
+      queryBuilder.andWhere('recipe.status = :status', { status: 'published' });
+
+      // 添加分页
+      queryBuilder.skip(skip).take(limitNum);
 
       if (categoryId) {
         queryBuilder.andWhere('recipe.category_id = :categoryId', { categoryId });
@@ -73,7 +125,17 @@ export class SearchService {
           break;
       }
 
+      // 打印生成的 SQL 用于调试
+      const sql = queryBuilder.getSql();
+      console.log('[SearchService] Generated SQL:', sql);
+
       const [items, total] = await queryBuilder.getManyAndCount();
+
+      console.log('[SearchService] Query result:', {
+        itemsCount: items.length,
+        total,
+        firstItem: items[0] ? { id: items[0].id, title: items[0].title } : null,
+      });
 
       return {
         items: items.map((recipe) => ({
