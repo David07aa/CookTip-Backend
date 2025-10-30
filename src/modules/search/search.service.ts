@@ -21,65 +21,70 @@ export class SearchService {
     difficulty?: string,
     sort: string = 'latest',
   ) {
-    const skip = (page - 1) * limit;
+    try {
+      const skip = (page - 1) * limit;
 
-    const queryBuilder = this.recipeRepository
-      .createQueryBuilder('recipe')
-      .leftJoinAndSelect('recipe.user', 'user')
-      .where('recipe.status = :status', { status: 'published' })
-      .andWhere(
-        '(recipe.title LIKE :keyword OR recipe.description LIKE :keyword)',
-        { keyword: `%${keyword}%` },
-      )
-      .skip(skip)
-      .take(limit);
+      const queryBuilder = this.recipeRepository
+        .createQueryBuilder('recipe')
+        .leftJoinAndSelect('recipe.user', 'user')
+        .where('recipe.status = :status', { status: 'published' })
+        .andWhere(
+          '(recipe.title LIKE :keyword OR recipe.description LIKE :keyword)',
+          { keyword: `%${keyword}%` },
+        )
+        .skip(skip)
+        .take(limit);
 
-    if (categoryId) {
-      queryBuilder.andWhere('recipe.category_id = :categoryId', { categoryId });
+      if (categoryId) {
+        queryBuilder.andWhere('recipe.category_id = :categoryId', { categoryId });
+      }
+      if (difficulty) {
+        queryBuilder.andWhere('recipe.difficulty = :difficulty', { difficulty });
+      }
+
+      switch (sort) {
+        case 'hot':
+          queryBuilder.orderBy('recipe.likes', 'DESC');
+          break;
+        case 'popular':
+          queryBuilder.orderBy('recipe.views', 'DESC');
+          break;
+        case 'latest':
+        default:
+          queryBuilder.orderBy('recipe.created_at', 'DESC');
+          break;
+      }
+
+      const [items, total] = await queryBuilder.getManyAndCount();
+
+      return {
+        items: items.map((recipe) => ({
+          id: recipe.id,
+          user: recipe.user ? {
+            id: recipe.user.id,
+            nickname: recipe.user.nickname || '美食达人',
+            avatar: recipe.user.avatar || '',
+          } : null,
+          title: recipe.title || '',
+          cover_image: recipe.cover_image || '',
+          description: recipe.description || '',
+          difficulty: recipe.difficulty || '中等',
+          cook_time: recipe.cook_time || 30,
+          tags: Array.isArray(recipe.tags) ? recipe.tags : (recipe.tags ? [recipe.tags] : []),
+          likes: recipe.likes || 0,
+          favorites: recipe.favorites || 0,
+          views: recipe.views || 0,
+          created_at: recipe.created_at,
+        })),
+        total,
+        page,
+        limit,
+        total_pages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      console.error('[SearchService] Search recipes error:', error);
+      throw error;
     }
-    if (difficulty) {
-      queryBuilder.andWhere('recipe.difficulty = :difficulty', { difficulty });
-    }
-
-    switch (sort) {
-      case 'hot':
-        queryBuilder.orderBy('recipe.likes', 'DESC');
-        break;
-      case 'popular':
-        queryBuilder.orderBy('recipe.views', 'DESC');
-        break;
-      case 'latest':
-      default:
-        queryBuilder.orderBy('recipe.created_at', 'DESC');
-        break;
-    }
-
-    const [items, total] = await queryBuilder.getManyAndCount();
-
-    return {
-      items: items.map((recipe) => ({
-        id: recipe.id,
-        user: recipe.user ? {
-          id: recipe.user.id,
-          nickname: recipe.user.nickname,
-          avatar: recipe.user.avatar,
-        } : null,
-        title: recipe.title,
-        cover_image: recipe.cover_image,
-        description: recipe.description,
-        difficulty: recipe.difficulty,
-        cook_time: recipe.cook_time,
-        tags: recipe.tags,
-        likes: recipe.likes,
-        favorites: recipe.favorites,
-        views: recipe.views,
-        created_at: recipe.created_at,
-      })),
-      total,
-      page,
-      limit,
-      total_pages: Math.ceil(total / limit),
-    };
   }
 
   /**
