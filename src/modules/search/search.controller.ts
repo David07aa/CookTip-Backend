@@ -9,6 +9,28 @@ import { Public } from '../../common/decorators/public.decorator';
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
+  @Get('test')
+  @ApiOperation({ summary: '测试搜索服务是否正常' })
+  @ApiResponse({ status: 200, description: '测试成功' })
+  async testSearch() {
+    try {
+      return {
+        code: 200,
+        message: 'Search service is running',
+        data: {
+          timestamp: new Date().toISOString(),
+          service: 'healthy',
+        },
+      };
+    } catch (error) {
+      return {
+        code: 500,
+        message: 'Search service error',
+        error: error.message,
+      };
+    }
+  }
+
   @Get('recipes')
   @ApiOperation({ summary: '搜索食谱' })
   @ApiQuery({ name: 'keyword', type: String })
@@ -26,14 +48,38 @@ export class SearchController {
     @Query('difficulty') difficulty?: string,
     @Query('sort') sort: string = 'latest',
   ) {
-    return this.searchService.searchRecipes(
+    // 确保查询参数是正确的数字类型（URL查询参数都是字符串）
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const categoryIdNum = categoryId ? Number(categoryId) : undefined;
+
+    console.log('[SearchController] Received request:', {
       keyword,
-      page,
-      limit,
-      categoryId,
+      page: pageNum,
+      limit: limitNum,
+      categoryId: categoryIdNum,
       difficulty,
       sort,
-    );
+    });
+
+    try {
+      const result = await this.searchService.searchRecipes(
+        keyword,
+        pageNum,
+        limitNum,
+        categoryIdNum,
+        difficulty,
+        sort,
+      );
+
+      console.log('[SearchController] Search success, items count:', result.items.length);
+
+      return result;
+    } catch (error) {
+      console.error('[SearchController] Search error:', error);
+      console.error('[SearchController] Error stack:', error.stack);
+      throw error;
+    }
   }
 
   @Get('hot-keywords')
@@ -55,4 +101,3 @@ export class SearchController {
     return this.searchService.getSearchSuggestions(keyword, limit);
   }
 }
-

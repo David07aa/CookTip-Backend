@@ -22,7 +22,10 @@ export class SearchService {
     sort: string = 'latest',
   ) {
     try {
-      const skip = (page - 1) * limit;
+      // 确保 page 和 limit 是数字类型
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 10;
+      const skip = (pageNum - 1) * limitNum;
 
       const queryBuilder = this.recipeRepository
         .createQueryBuilder('recipe')
@@ -48,7 +51,7 @@ export class SearchService {
           { keyword: `%${keyword}%` },
         )
         .skip(skip)
-        .take(limit);
+        .take(limitNum);
 
       if (categoryId) {
         queryBuilder.andWhere('recipe.category_id = :categoryId', { categoryId });
@@ -92,9 +95,9 @@ export class SearchService {
           created_at: recipe.created_at,
         })),
         total,
-        page,
-        limit,
-        total_pages: Math.ceil(total / limit),
+        page: pageNum,
+        limit: limitNum,
+        total_pages: Math.ceil(total / limitNum),
       };
     } catch (error) {
       console.error('[SearchService] Search recipes error:', error);
