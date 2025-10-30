@@ -62,3 +62,7 @@ verify-database.js
 工作日志-*.md
 work-log-*.md
 
+# Security scan reports (temporary)
+安全扫描报告-*.md
+security-scan-*.md
+
