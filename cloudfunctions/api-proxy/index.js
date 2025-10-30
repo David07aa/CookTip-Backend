@@ -74,9 +74,9 @@ exports.main = async (event, context) => {
     if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
       requestConfig.data = requestData
       console.log('请求体数据:', JSON.stringify(requestData))
-    } else if (method.toUpperCase() === 'GET' && Object.keys(requestData).length > 0) {
-      requestConfig.params = requestData
     }
+    // GET 请求的参数已经添加到 URL 了，不需要再添加 params
+    // 否则会导致参数重复（axios 会把 URL 参数和 params 都添加）
 
     // 发送请求到云托管后端
     const response = await axios(requestConfig)
