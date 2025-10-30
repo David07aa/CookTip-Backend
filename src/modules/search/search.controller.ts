@@ -74,8 +74,11 @@ export class SearchController {
     const limitNum = Number(limit) || 10;
     const categoryIdNum = categoryId ? Number(categoryId) : undefined;
 
-    console.log('[SearchController] Received request:', {
+    console.log('[SearchController] 🔍 接收到搜索请求:', {
       keyword,
+      keywordType: typeof keyword,
+      keywordLength: keyword?.length,
+      keywordTrimmed: keyword?.trim(),
       page: pageNum,
       limit: limitNum,
       categoryId: categoryIdNum,
