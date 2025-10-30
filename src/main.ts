@@ -1,14 +1,23 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+  
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+  
   const configService = app.get(ConfigService);
+
+  logger.log('🔧 Initializing CookTip Backend...');
 
   // 设置全局前缀（排除健康检查路径）
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
@@ -31,11 +40,17 @@ async function bootstrap() {
     }),
   );
 
-  // 全局响应拦截器
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // 全局拦截器 - 按顺序执行
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),  // 日志拦截器（第一个）
+    new TransformInterceptor(), // 响应转换拦截器
+  );
 
-  // 全局异常过滤器
-  app.useGlobalFilters(new HttpExceptionFilter());
+  // 全局异常过滤器 - AllExceptionsFilter 必须最先注册
+  app.useGlobalFilters(
+    new AllExceptionsFilter(),  // 捕获所有异常（包括未处理的错误）
+    new HttpExceptionFilter(),  // HTTP异常过滤器
+  );
 
   // Swagger文档配置
   const config = new DocumentBuilder()
@@ -60,9 +75,16 @@ async function bootstrap() {
   const port = configService.get('PORT') || 3000;
   await app.listen(port);
   
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}`);
+  logger.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  logger.log(`🔍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.log(`✅ CookTip Backend started successfully!`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  const logger = new Logger('Bootstrap');
+  logger.error('❌ Failed to start application:', err);
+  logger.error(err.stack);
+  process.exit(1);
+});
 
