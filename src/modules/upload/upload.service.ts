@@ -19,10 +19,22 @@ export class UploadService {
       fs.mkdirSync(uploadPath, { recursive: true });
     }
 
-    // 生成文件名
-    const ext = path.extname(file.originalname);
-    const filename = `${type}_${Date.now()}${ext}`;
-    const filepath = path.join(uploadPath, filename);
+    // 🔒 安全验证：防止路径遍历攻击
+    // 1. 验证 type 参数，只允许预定义的值
+    const allowedTypes = ['cover', 'step', 'comment', 'avatar'];
+    const sanitizedType = allowedTypes.includes(type) ? type : 'cover';
+
+    // 2. 清理文件扩展名，移除路径遍历字符
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const sanitizedExt = allowedExtensions.includes(ext) ? ext : '.jpg';
+
+    // 3. 生成安全的文件名（只包含类型、时间戳和扩展名）
+    const filename = `${sanitizedType}_${Date.now()}${sanitizedExt}`;
+    
+    // 4. 使用 path.basename 确保文件名不包含路径
+    const safeFilename = path.basename(filename);
+    const filepath = path.join(uploadPath, safeFilename);
 
     // 保存文件
     fs.writeFileSync(filepath, file.buffer);
