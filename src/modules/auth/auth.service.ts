@@ -431,7 +431,7 @@ export class AuthService {
     });
 
     if (!credential) {
-      throw new UnauthorizedException('账号不存在');
+      throw new UnauthorizedException('账号不存在，请注册');
     }
 
     const user = await this.userRepository.findOne({
