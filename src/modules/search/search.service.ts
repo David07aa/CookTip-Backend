@@ -59,11 +59,11 @@ export class SearchService {
     return {
       items: items.map((recipe) => ({
         id: recipe.id,
-        user: {
+        user: recipe.user ? {
           id: recipe.user.id,
           nickname: recipe.user.nickname,
           avatar: recipe.user.avatar,
-        },
+        } : null,
         title: recipe.title,
         cover_image: recipe.cover_image,
         description: recipe.description,
