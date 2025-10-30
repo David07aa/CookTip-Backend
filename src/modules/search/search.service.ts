@@ -27,6 +27,21 @@ export class SearchService {
       const queryBuilder = this.recipeRepository
         .createQueryBuilder('recipe')
         .leftJoinAndSelect('recipe.user', 'user')
+        .select([
+          'recipe.id',
+          'recipe.title',
+          'recipe.cover_image',
+          'recipe.description',
+          'recipe.difficulty',
+          'recipe.cook_time',
+          'recipe.likes',
+          'recipe.favorites',
+          'recipe.views',
+          'recipe.created_at',
+          'user.id',
+          'user.nickname',
+          'user.avatar',
+        ])
         .where('recipe.status = :status', { status: 'published' })
         .andWhere(
           '(recipe.title LIKE :keyword OR recipe.description LIKE :keyword)',
@@ -70,7 +85,7 @@ export class SearchService {
           description: recipe.description || '',
           difficulty: recipe.difficulty || '中等',
           cook_time: recipe.cook_time || 30,
-          tags: Array.isArray(recipe.tags) ? recipe.tags : (recipe.tags ? [recipe.tags] : []),
+          tags: [], // 暂时返回空数组，避免 JSON 序列化问题
           likes: recipe.likes || 0,
           favorites: recipe.favorites || 0,
           views: recipe.views || 0,
