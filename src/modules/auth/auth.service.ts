@@ -243,15 +243,20 @@ export class AuthService {
     try {
       console.log('📡 调用微信 API:', url);
       
-      // 创建 HTTPS Agent，跳过 SSL 证书验证（解决云托管环境的证书问题）
-      const httpsAgent = new https.Agent({
-        rejectUnauthorized: false, // 跳过证书验证
-      });
+      // 🔒 安全配置：默认启用 SSL 证书验证
+      // 仅在环境变量明确设置时才禁用（不推荐）
+      const skipSSLVerify = this.configService.get('SKIP_SSL_VERIFY') === 'true';
       
-      const response = await axios.get(url, { 
-        params,
-        httpsAgent, // 使用自定义 HTTPS Agent
-      });
+      const axiosConfig: any = { params };
+      
+      if (skipSSLVerify) {
+        console.warn('⚠️  SSL 证书验证已禁用（不安全，仅用于调试）');
+        axiosConfig.httpsAgent = new https.Agent({
+          rejectUnauthorized: false,
+        });
+      }
+      
+      const response = await axios.get(url, axiosConfig);
       console.log('📥 微信 API 响应:', JSON.stringify(response.data));
       
       const { openid, session_key, errcode, errmsg } = response.data;
