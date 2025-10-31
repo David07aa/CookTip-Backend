@@ -18,14 +18,12 @@ export class RegisterDto {
 
   @ApiProperty({
     description: '密码',
-    example: 'Password123!',
+    example: '123456',
     minLength: 6,
   })
   @IsString()
   @MinLength(6, { message: '密码至少6个字符' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: '密码必须包含大写字母、小写字母和数字',
-  })
+  @MaxLength(50, { message: '密码最多50个字符' })
   password: string;
 
   @ApiPropertyOptional({
